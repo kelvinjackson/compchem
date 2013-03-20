@@ -10,8 +10,6 @@
     ###                                                             
     ###
 
-# Copyright (c) 2012- Robert Paton; All Rights Reserved.
-#
 # THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,17 +23,15 @@
 
 #######################################################################
 #                      black_box_RRHO.py                              #
-#  Nothing original - computes the vibrational entropy using          #
+#  A program to computes the vibrational entropy using                #
 #  a harmonic approximation for frequencies above a certain           #
 #  cutoff, and a free-rotor approximation below. A damping            #
 #  function feathers the entropy term between the two limits          #
-#  as in: Grimme, S. Chem. Eur. J. 2012, 18, 9955                     #
+#  as described in: Grimme, S. Chem. Eur. J. 2012, 18, 9955           #
 #######################################################################
-
-#################################################
-#######  Written by:  Rob Paton #################
-#######  Last modified:  Mar 20, 2013 ###########
-#################################################
+#######  Written by:  Rob Paton #######################################
+#######  Last modified:  Mar 20, 2013 #################################
+#######################################################################
 
 ## Adapted from Dr Arne Dieckmann's (UCLA) quasiharmonic free energy python code##
 
