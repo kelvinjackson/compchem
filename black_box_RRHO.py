@@ -10,6 +10,19 @@
     ###                                                             
     ###
 
+# Copyright (c) 2012- Robert Paton; All Rights Reserved.
+#
+# THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Comments and/or additions are welcome (send e-mail to:
+# robert.paton@chem.ox.ac.uk
+
 #######################################################################
 #                      black_box_RRHO.py                              #
 #  Nothing original - computes the vibrational entropy using          #
@@ -19,8 +32,12 @@
 #  as in: Grimme, S. Chem. Eur. J. 2012, 18, 9955                     #
 #######################################################################
 
-## Rob Paton, University of Oxford Feb 2013 ## 
-## Adapted from Dr Arne Dieckmann's (UCLA) quasiharmonic free energy python ##
+#################################################
+#######  Written by:  Rob Paton #################
+#######  Last modified:  Mar 20, 2013 ###########
+#################################################
+
+## Adapted from Dr Arne Dieckmann's (UCLA) quasiharmonic free energy python code##
 
 import sys
 import math

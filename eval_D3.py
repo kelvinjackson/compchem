@@ -1,21 +1,26 @@
-		          ###                     ###          ###
-				  ###                     ###          ###
-				  ###                     ###          ###
-#####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.
-### "##b     "##b ###   d##""##b ### "##b ###     "##b ### "##b
-###  ### .d###### ###   ###  ### ###  ### ### .d###### ###  ###
-### d##P ###  ### Y##b. Y##..##P ###  ### ### ###  ### ### d##P
-#####P"  "Y######  "Y### "Y##P"  ###  ### ### "Y###### #####P"
-###
-###
-###
+#!/usr/bin/python
 
-###############################################################
-#                        eval_D3.py                           #
-#     Kelvin Jackson & Robert Paton, University of Oxford     #
-#                          2013                               #
-#         evalute D3 steric repulsion and dispersion          #
-###############################################################
+###                   ###                     ###          ###      ###
+###                   ###                     ###          ###      ###
+    #####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.  ###
+### ### "##b     "##b ###   d##""##b ### "##b ###     "##b ### "##b ###
+### ###  ### .d###### ###   ###  ### ###  ### ### .d###### ###  ###
+### ### d##P ###  ### Y##b. Y##..##P ###  ### ### ###  ### ### d##P ###
+### #####P"  "Y######  "Y### "Y##P"  ###  ### ### "Y###### #####P"  ###
+    ###                                                             
+    ###
+
+####################################################################
+#                        eval_D3.py                                #
+#     Kelvin Jackson & Robert Paton, University of Oxford          #
+#                          2012                                    #
+#    For a Gaussian formatted input file this program will         #
+#    compute Grimme's D3 attractive interaction                    #
+#    All attractive potentials, cutoffs, damping, connectivity are #
+#    adapted from Grimme's DFT-D3                                  #
+#    Where connectivity is available, it can be used to scale      #
+#    certain interactions and compute steric repulsion             #
+####################################################################
 
 # Dependent on parameter file
 from pars import *
