@@ -24,13 +24,18 @@ import subprocess, sys, os
 from ChemUtils import *
 
 
+## Check for integer when parsing ##
+def is_number(s):
+    try: int(s); return True
+    except ValueError: return False
+
+
 #Read molecule data from an input file
 class getinData: 
 	
 	def __init__(self, file):
 		if not os.path.exists(file+".com"):
 			print ("\nFATAL ERROR: Input file [ %s ] does not exist"%file)
-
 
 		def getJOBTYPE(self, inlines):
 			for i in range(0,len(inlines)):
@@ -40,10 +45,10 @@ class getinData:
 		def getCHARGE(self, inlines):
 			for i in range(0,len(inlines)):
 				if inlines[i].find("#") > -1:
-					print inlines[i], inlines[i+1]
-					#if len(inlines[i+1].split()) == 0:
-					#	self.CHARGE = inlines[i+4].split()[0]
-					#	self.MULT = inlines[i+4].split()[1]
+					#print inlines[i], inlines[i+1]
+					if len(inlines[i+1].split()) == 0:
+						self.CHARGE = inlines[i+4].split()[0]
+						self.MULT = inlines[i+4].split()[1]
 					#if len(inlines[i+2].split()) == 0:
 					#	self.CHARGE = inlines[i+5].split()[0]
 					#	self.MULT = inlines[i+5].split()[1]
@@ -91,6 +96,7 @@ class getinData:
 			if start < len(inlines):
 				j = 1
 				for i in range(start,len(inlines)):
+					num = 0
 					if len(inlines[i].split()) != 0:
 						try:
 							num = int(inlines[i].split()[0])
@@ -138,8 +144,37 @@ class getinData:
 					break
 				elif len(inlines[i].split()) == 4:
 					self.CARTESIANS.append([float(inlines[i].split()[1]), float(inlines[i].split()[2]), float(inlines[i].split()[3])])
-				
-								
+
+		def getBONDINDEX(self,inlines,natoms):
+			conn=[]
+			connectivity = 0
+			
+			for j in range(0,len(inlines)):
+				if "1 2 " in inlines[j]:
+					startconn = j
+					connectivity  = 1
+					break
+
+			if connectivity == 1:
+				for j in range(startconn,len(inlines)):
+						conn.append(inlines[j])
+			
+			self.BONDINDEX=[]
+			
+			for j in range(0,natoms):
+				self.BONDINDEX.append([0])
+				for k in range(0,natoms):
+					self.BONDINDEX[j].append(0)
+			
+			for j in range(0,natoms):
+				if connectivity == 1:
+					for bonded in conn[j].split():
+						if is_number(bonded) ==True:
+							if int(bonded)-1!=j:
+								self.BONDINDEX[j][int(bonded)-1]=1
+								self.BONDINDEX[int(bonded)-1][j]=1
+		
+					
 		def getCONSTRAINED(self, optional):
 			self.CONSTRAINED = []
 			for line in optional:
@@ -150,13 +185,13 @@ class getinData:
 		inlines = infile.readlines()
 		
 		getJOBTYPE(self, inlines)
-		getSPIN(self,inlines)
 		getCHARGE(self, inlines)
 		getMEMREQ(self, inlines)
 		getNPROC(self, inlines)
 		getATOMTYPES(self, inlines)
 		self.NATOMS=len(self.ATOMTYPES)
 		getCONNECTIVITY(self, inlines, self.NATOMS)
+		getBONDINDEX(self,inlines,self.NATOMS)
 		getCARTESIANS(self, inlines, self.NATOMS)
 		getCONSTRAINED(self, self.OPTIONAL)
 		
@@ -378,7 +413,8 @@ class getoutData:
 					if outlines[i].find("PM3") > -1: pm3 = i	
 					if outlines[i].find("ONIOM") > -1: oniom = i
 					if outlines[i].find("SCF Done") > -1: scf = i
-					
+					if outlines[i].find("RB3LYP") > -1: self.FUNCTIONAL = "B3LYP"
+				
 				calctype = [uff,am1,pm3,oniom,scf]
 				for i in range(0,len(outlines)):
 					if scf == max(calctype) and outlines[i].find("SCF Done") > -1 and outlines[i].find("Initial convergence to 1.0D-05 achieved")==-1: # Get energy from HF or DFT calculation

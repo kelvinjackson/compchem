@@ -22,8 +22,16 @@
 #    certain interactions and compute steric repulsion             #
 ####################################################################
 
+
+#  To be added:
+#  Becke-Johnson Damping
+#  3 body terms
+
 # Dependent on parameter file
 from pars import *
+
+# For reading Gaussian formatted input/output files
+from ccParse import *
 
 #Python libararies
 import random, sys, os, commands, string, math
@@ -62,14 +70,12 @@ max_elem = 94
 ## maximum connectivity
 maxc = 5
 
-
 ## Work out the atoms in the same molecules
 def getMollist(bondmatrix,startatom):
 	
 	# The list of atoms in a molecule
 	atomlist=[]
 	atomlist.append(startatom)
-
 	molecule1=[]
 	nextlot=[]
 	count = 0
@@ -87,13 +93,13 @@ def getMollist(bondmatrix,startatom):
 					if alreadyfound == 0: atomlist.append(i)
 
 		count=count+1	
-
 	return atomlist
 	
 
 ## DFT derived values for diatomic cutoff radii from Grimme ##
 ## These are read from pars.py and converted from atomic units into Angstrom
 r = [[0]*max_elem for x in xrange(max_elem)]
+
 k=0
 for i in range(0,max_elem):
 	for j in range(0,i+1):
@@ -105,7 +111,6 @@ for i in range(0,max_elem):
 for i in range(0,max_elem):
 	dum=0.5*r2r4[i]*float(i+1)**0.5
 	r2r4[i]=math.pow(dum,0.5)
-
 
 ## Reference systems are read in to compute coordination number dependent dispersion coefficients
 def copyc6(max_elem, maxc):
@@ -175,8 +180,7 @@ def getc6(maxc,max_elem,c6ab,mxc,atomtype,cn,a,b):
 
 def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 	cn =[]
-	for i in range(0,natom):
-		
+	for i in range(0,natom):		
 		xn = 0.0
 		for iat in range(0,natom):
 			if iat != i:
@@ -185,6 +189,7 @@ def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 				dz = zco[iat] - zco[i]
 				r2 = dx*dx+dy*dy+dz*dz
 				r = math.pow(r2,0.5)
+				r = r
 				
 				for k in range(0,max_elem):
 					if atomtype[i].find(elements[k])>-1:Zi=k
@@ -194,7 +199,7 @@ def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 				rco = rco*k2
 				rr=rco/r
 				damp=1.0/(1.0+math.exp(-k1*(rr-1.0)))
-				#print Zi, Ziat,r, rcov[Zi], rcov[Ziat], rco,rr, damp
+				print Zi, Ziat,r, rcov[Zi], rcov[Ziat], rco,rr, damp
 				xn=xn+damp
 		
 		cn.append(xn)
@@ -204,89 +209,51 @@ def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 ## Get from pars.py
 c6ab = copyc6(max_elem, maxc)
 
-
 ## The periodic table...
 elm=['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr']
 
-
-## The computation of the classical non-bonding interaction
+## The computation of the D3 dispersion correction
 class calcD3:
-	
 	def __init__(self, file, s6, rs6, s8):
 		
-		file = file.split(".com")[0]
-		infile = open(file+".com","r")
-		inlines = infile.readlines()
+		## Use ccParse to get the geomtetric data from file
+		if len(file.split(".com"))>1:
+			file = file.split(".com")[0]
+			fileData = getinData(file)
+				
+		if len(file.split(".out"))>1:
+			file = file.split(".out")[0]
+			fileData = getoutData(file)
+			
+			if hasattr(fileData,"FUNCTIONAL"):
 
-		## Get past the standard Gaussian Input lines at the top of the file
-		## This may need making more general 
-		line0=inlines[0]; line1=inlines[1]; line2=inlines[2]; line3=inlines[3]; line4=inlines[4]; line5=inlines[5]
-		for j in range(0,8):
-			if len(inlines[j])>0 and len(inlines[j])<130:
-				if len(inlines[j].split())==2 or len(inlines[j].split())==6: titleline=j; break
-
+				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \n   Using default B3LYP D3 parameters"
+		
+		print "o  Reading", file, "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
 		## Arrays for atoms and Cartesian coordinates ##
-		atom=[]
-		atomtype=[]
-		xco=[]
-		yco=[]
-		zco=[]
-
-
-		for j in range(titleline,len(inlines)):
-			for string in elm:
-				if inlines[j].find(string+"_")>-1 or inlines[j].find(string+" ")>-1 :
-					if len(inlines[j].split()) > 3:
-						atom.append(inlines[j])
-		## The number of atoms 
-		natom = len(atom)
-
-		## Establish the molecular connectivity from the Gaussian input - This isn't important for attractive terms, however, it will dictate which repulsive terms are switched on
-		conn=[]
-		connectivity = 0
-
-		for line in inlines:
-			if "1 2 " in line:
-				connectivity  = 1
-				for j in range(natom+titleline+2,natom+titleline+2+natom):
-					conn.append(inlines[j])
-
-		bndidx=[]
-
-		for j in range(0,natom):
-			bndidx.append([0])
-			for k in range(0,natom):
-				bndidx[j].append(0)
-
-		for j in range(0,natom):
-			if connectivity == 1:
-				for bonded in conn[j].split():
-					if is_number(bonded) ==True:
-						if int(bonded)-1!=j:
-							bndidx[j][int(bonded)-1]=1
-							bndidx[int(bonded)-1][j]=1
-
-		#print atom
-		for at in atom:
-			atomtype.append((at.split()[0]).split("-")[0])
-			xco.append(float(at.split()[1]))
-			yco.append(float(at.split()[2]))
-			zco.append(float(at.split()[3]))
-
-		self.repulsive_vdw = 0.0
-		self.attractive_vdw = 0.0
+		atomtype = fileData.ATOMTYPES
+		natom = len(atomtype)
 		
+		xco=[]; yco=[]; zco=[]
+		for at in fileData.CARTESIANS:
+			xco.append(at[0])
+			yco.append(at[1])
+			zco.append(at[2])
+
+		## In case something clever needs to be done wrt inter and intramolecular interaction
+		if hasattr(fileData,"BONDINDEX"):
+			molAatoms = getMollist(fileData.BONDINDEX,0)
+			mols = []
+			for j in range(0,natom):
+				mols.append(0)
+				for atom in molAatoms:
+					if atom == j: mols[j] = 1
+	
+		## Names are pretty obvious...
+		self.repulsive_vdw = 0.0; self.attractive_r6_vdw = 0.0; self.attractive_r8_vdw = 0.0
 		
-		molAatoms = getMollist(bndidx,0)
-		mols = []
-		for j in range(0,natom):
-			mols.append(0)
-			for atom in molAatoms:
-				if atom == j: mols[j] = 1
-		
-		#print mols
-		#print "o  Using the following C6 cooefficients"
-		#print "   ID   Z    CN        C6"
+		print "o  Using the following C6 cooefficients"
+		print "   ID   Z    CN        C6"
 		mxc=[0]
 		for j in range(0,max_elem):
 			mxc.append(0)
@@ -295,7 +262,7 @@ class calcD3:
 					for l in range(0,maxc):
 						if isinstance(c6ab[j][j][l][l], (list, tuple)):
 							if c6ab[j][j][l][l][0]>0:
-								#print "  ", atomtype[k],"  ", (j+1),"  ", c6ab[j][j][l][l][1],"  ", c6ab[j][j][l][l][0]
+								print "  ", atomtype[k],"  ", (j+1),"  ", c6ab[j][j][l][l][1],"  ", c6ab[j][j][l][l][0]
 								mxc[j]=mxc[j]+1
 					break
 
@@ -303,10 +270,11 @@ class calcD3:
 		cn = ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2)
 
 		## C6 - Need to calculate these from fractional coordination
-		#print "\n   #                XYZ [au]                   R0(AA) [Ang.]  CN          C6(AA)     C8(AA)   C10(AA) [au]"
+		print "\n   #                XYZ [au]                   R0(AA) [Ang.]  CN          C6(AA)     C8(AA)   C10(AA) [au]"
 
 		x=0
 		for j in range(0,natom):
+			
 			C6jj = getc6(maxc,max_elem,c6ab,mxc,atomtype,cn,j,j)
 			
 			for k in range(0,natom):
@@ -322,27 +290,28 @@ class calcD3:
 			C8jj = 3.0*C6jj*math.pow(r2r4[z],2.0)
 			C10jj=49.0/40.0 * math.pow(C8jj,2.0)/C6jj
 
-		#	print "  ",(j+1), xco[j], yco[j], zco[j], atomtype[j], dum, cn[j], C6jj, C8jj, C10jj
+			print "  ",(j+1), xco[j], yco[j], zco[j], atomtype[j], dum, cn[j], C6jj, C8jj, C10jj
 
-		#print "\n   Molecular C6(AA) [au] =   ", x
+		print "\n   Molecular C6(AA) [au] =   ", x
 
 		## Compute and output the individual components of the D3 energy correction ##
-		#print "\n   Atoms  Types  C6            C8            E6              E8"
+		print "\n   Atoms  Types  C6            C8            E6              E8"
 		for j in range(0,natom):
 			
 			## This could be used to 'switch off' dispersion between bonded or geminal atoms ##
 			for k in range(j+1,natom):
 				scalefactor=1.0
-				vdw=1
-				if bndidx[j][k]==1: vdw=0
-				for l in range (0,natom):
-					if bndidx[j][l] != 0 and bndidx[k][l]!=0 and j!=k and bndidx[j][k]==0: vdw=0
-					for m in range (0,natom):
-						if bndidx[j][l] != 0 and bndidx[l][m]!=0 and bndidx[k][m]!=0 and j!=m and k!=l and bndidx[j][m]==0: scalefactor=0.0
+				vdw=0
+				if hasattr(fileData,"BONDINDEX"):
+					if fileData.BONDINDEX[j][k]==1: vdw=0
+					for l in range (0,natom):
+						if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[k][l]!=0 and j!=k and fileData.BONDINDEX[j][k]==0: vdw=0
+						for m in range (0,natom):
+							if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[l][m]!=0 and fileData.BONDINDEX[k][m]!=0 and j!=m and k!=l and fileData.BONDINDEX[j][m]==0: scalefactor=0.0
 				
 				
-				if k>j and mols[j]!=mols[k]:
-					#print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ",
+				if k>j:
+					print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ",
 					
 					## Pythagoras in 3D to work out distance ##
 					xdist = xco[j]-xco[k]
@@ -362,7 +331,7 @@ class calcD3:
 					C8jk = 3.0*C6jk*r2r4[atomA]*r2r4[atomB]
 					C10jk=49.0/40.0 * math.pow(C8jk,2.0)/C6jk
 					
-					#print C6jk, C8jk,
+					print C6jk, C8jk,
 					
 					dist=totdist/autoang
 					rr = r[atomA][atomB]/dist
@@ -377,7 +346,7 @@ class calcD3:
 					
 					# Example for a repulsive potential dependent on R^-12
 					# If two atoms are bonded then this term is zero
-					if vdw == 1 and connectivity == 1:
+					if vdw == 1 and len(fileData.BONDINDEX) > 1:
 						self.repulsive_vdw_term = R6jk*(1-damp6)/math.pow(1/tmp1,12)*math.pow(repfac,12)*scalefactor
 					else: self.repulsive_vdw_term = 0.0
 					
@@ -390,11 +359,12 @@ class calcD3:
 					self.attractive_r8_term = -s8*C8jk*damp8/math.pow(dist,8)*autokcal*scalefactor
 					#self.attractive_r8_term = 0.0
 
-
 					self.repulsive_vdw = self.repulsive_vdw + self.repulsive_vdw_term
-					self.attractive_vdw = self.attractive_vdw + self.attractive_r6_term + self.attractive_r8_term
-					#print self.attractive_r6_term, self.attractive_r8_term, self.repulsive_vdw_term
-	
+					self.attractive_r6_vdw = self.attractive_r6_vdw + self.attractive_r6_term
+					self.attractive_r8_vdw = self.attractive_r8_vdw + self.attractive_r8_term
+					print self.attractive_r6_term, self.attractive_r8_term, self.repulsive_vdw_term
+
+
 if __name__ == "__main__":
 	
 	# Takes arguments: (1) s6, (2) rs6, (3) s8, (4) input file(s)
@@ -404,7 +374,7 @@ if __name__ == "__main__":
 		rs6 = float(sys.argv[2])
 		s8 = float(sys.argv[3])
 		for i in range(4,len(sys.argv)):
-			files.append(sys.argv[i].split(".")[0])
+			files.append(sys.argv[i])
 	else:
 		print "\nWrong number of arguments used. Correct format: eval_D3 s6 rs6 s8 file(s)\n"
 		sys.exit()
@@ -412,24 +382,12 @@ if __name__ == "__main__":
 
 	for file in files:
 		fileD3 = calcD3(file, s6, rs6, s8)
-		attractive_vdw = fileD3.attractive_vdw
+		attractive_r6_vdw = fileD3.attractive_r6_vdw
+		attractive_r8_vdw = fileD3.attractive_r8_vdw
 		repulsive_vdw = fileD3.repulsive_vdw
-		total_vdw = attractive_vdw + repulsive_vdw
-		print "\no  Reading", file, "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
-		print "o  Attractive Part:", attractive_vdw, "kcal/mol"
+		total_vdw = attractive_r6_vdw + attractive_r8_vdw + repulsive_vdw
+		
+		print "o  Attractive R6 Part:", attractive_r6_vdw, "kcal/mol"
+		print "o  Attractive R8 Part:", attractive_r8_vdw, "kcal/mol"
 		print "o  Repulsive Part:",repulsive_vdw, "kcal/mol"
 		print "o  Total:", total_vdw,"kcal/mol \n"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
