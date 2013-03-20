@@ -10,22 +10,34 @@
     ###                                                             
     ###
 
-####################################################################
-#                        eval_D3.py                                #
-#     Kelvin Jackson & Robert Paton, University of Oxford          #
-#                          2012                                    #
-#    For a Gaussian formatted input file this program will         #
-#    compute Grimme's D3 attractive interaction                    #
-#    All attractive potentials, cutoffs, damping, connectivity are #
-#    adapted from Grimme's DFT-D3                                  #
-#    Where connectivity is available, it can be used to scale      #
-#    certain interactions and compute steric repulsion             #
-####################################################################
+# THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Comments and/or additions are welcome (send e-mail to:
+# robert.paton@chem.ox.ac.uk
+
+#######################################################################
+#                        eval_D3.py                                   #
+#     Kelvin Jackson & Robert Paton, University of Oxford, 2012       #
+#                                                                     #
+#    For a Gaussian formatted input file this program will            #
+#    compute Grimme's D3 attractive interaction                       #
+#    All attractive potentials, cutoffs, damping, connectivity are    #
+#    adapted from Grimme's DFT-D3                                     #
+#    Where connectivity is available, it can be used to scale         #
+#    certain interactions and compute steric repulsions               #
+#######################################################################
+#######  Written by:  Rob Paton #######################################
+#######  Last modified:  Mar 20, 2013 #################################
+#######################################################################
 
 
-#  To be added:
-#  Becke-Johnson Damping
-#  3 body terms
+#  To be added:  Becke-Johnson Damping
 
 # Dependent on parameter file
 from pars import *

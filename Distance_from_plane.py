@@ -1,28 +1,40 @@
 #!/usr/bin/python
 
-                  ###                     ###          ###      
-                  ###                     ###          ###      
-                  ###                     ###          ###      
-#####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.  
-### "##b     "##b ###   d##""##b ### "##b ###     "##b ### "##b 
-###  ### .d###### ###   ###  ### ###  ### ### .d###### ###  ### 
-### d##P ###  ### Y##b. Y##..##P ###  ### ### ###  ### ### d##P 
-#####P"  "Y######  "Y### "Y##P"  ###  ### ### "Y###### #####P"  
-###                                                             
-###                                                             
-###
+###                   ###                     ###          ###      ###
+###                   ###                     ###          ###      ###
+    #####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.  ###
+### ### "##b     "##b ###   d##""##b ### "##b ###     "##b ### "##b ###
+### ###  ### .d###### ###   ###  ### ###  ### ### .d###### ###  ###
+### ### d##P ###  ### Y##b. Y##..##P ###  ### ### ###  ### ### d##P ###
+### #####P"  "Y######  "Y### "Y##P"  ###  ### ### "Y###### #####P"  ###
+    ###
+    ###
 
-###############################################################
-#                                                             #
-#                         ccParse.py                          #
-#                                                             #
-#                Reads compchem job file(s)                   #
-#                                                             #
-###############################################################
+# THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Comments and/or additions are welcome (send e-mail to:
+# robert.paton@chem.ox.ac.uk
 
-#Python Libraries 
+#######################################################################
+#                 Distance_from_place.py                              #
+#  A program to computes the perpendicular distance of a single atom  #
+#  from a plane defined by three other atoms. This was used in the    #
+#  study described in:                                                #
+#  Hodgson, D. M.; Charlton, A.; Paton, R. S.; Thompson, A. S.        #
+#  J. Org. Chem. 2013, 8, 1508–1518.                                  #
+#######################################################################
+#######  Written by:  Rob Paton #######################################
+#######  Last modified:  Nov 20, 2012 #################################
+#######################################################################
+
+#Python Libraries
 import subprocess, sys, os
-
 	
 #Chemistry Libaries
 from ChemUtils import *
@@ -35,7 +47,6 @@ class getoutData:
 		if not os.path.exists(file+".out"):
 			if not os.path.exists(file+".log"):
                         	print ("\nFATAL ERROR: Output file [ %s ] does not exist"%file)
-
 		
 		def getFORMAT(self, outlines):
 			for i in range(0,len(outlines)):

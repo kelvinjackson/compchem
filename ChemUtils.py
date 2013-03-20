@@ -2,24 +2,39 @@
 
 ###                   ###                     ###          ###      ###
 ###                   ###                     ###          ###      ###
-    #####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.  ###
+#####b.   ####b.  ###### .d##b.  #####b.  ###  ####b.  #####b.  ###
 ### ### "##b     "##b ###   d##""##b ### "##b ###     "##b ### "##b ###
 ### ###  ### .d###### ###   ###  ### ###  ### ### .d###### ###  ###
 ### ### d##P ###  ### Y##b. Y##..##P ###  ### ### ###  ### ### d##P ###
 ### #####P"  "Y######  "Y### "Y##P"  ###  ### ### "Y###### #####P"  ###
-    ###                                                             
-    ###
+###
+###
 
-###############################################################
-#                       ChemUtils.py                          #
-#   elementID - returns element symbol from atomic number     #
-#   atomicNum - returns atomic number from elemental symbol   #
-#   bondiRadius - return Bondi radius from atomic number      #
-#   digitalMonth - returns month as number 1-12 from name     #
-#   reName - replaces occurences of oldname to newname for    #
-#            all files in a directory                         #
-###############################################################
+# THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# Comments and/or additions are welcome (send e-mail to:
+# robert.paton@chem.ox.ac.uk
 
+#######################################################################
+#                  ChemUtils - Utilities for Chemistry!               #
+#   elementID - returns element symbol from atomic number             #
+#   atomicNum - returns atomic number from elemental symbol           #
+#   bondiRadius - return Bondi radius from atomic number              #
+#   digitalMonth - returns month as number 1-12 from name             #
+#   reName - replaces occurences of oldname to newname for            #
+#            all files in a directory                                 #
+#   Standard Pythaogorean and trigonometric functions to compute      #
+#   distances, angles and dihedrals                                   #
+#######################################################################
+#######  Written by:  Rob Paton #######################################
+#######  Last modified:  Mar 20, 2013 #################################
+#######################################################################
 
 #Python libararies
 import sys, os, commands, string, math
