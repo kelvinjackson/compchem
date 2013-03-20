@@ -1230,7 +1230,7 @@ def asciiArt(now):
 	print "  \\  \\:\\    \\  \\:\\/:/     \\  \\::/      \\  \\::/     \\  \\:\\       \\  \\:\\/:/    \\  \\:\\          \\  \\:\\\\  \\:\\/:/"
 	print "   \\  \\:\\    \\  \\::/       \\__\\/        \\__\\/       \\  \\:\\       \\  \\::/      \\  \\:\\          \\__\\/ \\  \\::/"
 	print "    \\__\\/     \\__\\/                                  \\__\\/        \\__\\/        \\__\\/                 \\__\\/ "
-	print now
+	print "  ", now
 
 
 #Read molecule data from an input file - currently Gaussian *.com and *.pdb supported
