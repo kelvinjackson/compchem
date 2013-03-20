@@ -205,6 +205,11 @@ def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 		cn.append(xn)
 	return cn
 
+def lin(i1,i2):
+	idum1=max(i1,i2)
+	idum2=min(i1,i2)
+	lin=idum2+idum1*(idum1-1)/2
+	return lin
 
 ## Get from pars.py
 c6ab = copyc6(max_elem, maxc)
@@ -227,9 +232,9 @@ class calcD3:
 			
 			if hasattr(fileData,"FUNCTIONAL"):
 
-				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \n   Using default B3LYP D3 parameters"
+				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default B3LYP D3 parameters:", 
 		
-		print "o  Reading", file, "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
+		print "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
 		## Arrays for atoms and Cartesian coordinates ##
 		atomtype = fileData.ATOMTYPES
 		natom = len(atomtype)
@@ -250,7 +255,7 @@ class calcD3:
 					if atom == j: mols[j] = 1
 	
 		## Names are pretty obvious...
-		self.repulsive_vdw = 0.0; self.attractive_r6_vdw = 0.0; self.attractive_r8_vdw = 0.0
+		self.repulsive_vdw = 0.0; self.attractive_r6_vdw = 0.0; self.attractive_r8_vdw = 0.0; self.repulsive_abc = 0.0
 		
 		#print "o  Using the following C6 cooefficients"
 		#print "   ID   Z    CN        C6"
@@ -289,15 +294,15 @@ class calcD3:
 			
 			C8jj = 3.0*C6jj*math.pow(r2r4[z],2.0)
 			C10jj=49.0/40.0 * math.pow(C8jj,2.0)/C6jj
-
 			#print "  ",(j+1), xco[j], yco[j], zco[j], atomtype[j], dum, cn[j], C6jj, C8jj, C10jj
-
+		
 		#print "\n   Molecular C6(AA) [au] =   ", x
 
+		icomp = [0]*1000; cc6ab = [0]*1000; r2ab = [0]*1000; dmp = [0]*1000
+					
 		## Compute and output the individual components of the D3 energy correction ##
 		#print "\n   Atoms  Types  C6            C8            E6              E8"
 		for j in range(0,natom):
-			
 			## This could be used to 'switch off' dispersion between bonded or geminal atoms ##
 			for k in range(j+1,natom):
 				scalefactor=1.0
@@ -364,6 +369,43 @@ class calcD3:
 					self.attractive_r8_vdw = self.attractive_r8_vdw + self.attractive_r8_term
 					#print self.attractive_r6_term, self.attractive_r8_term, self.repulsive_vdw_term
 
+	
+					jk=lin(k,j)
+					icomp[jk] = 1
+					cc6ab[jk] = math.sqrt(C6jk)
+					r2ab[jk] = dist**2
+					dmp[jk] = (1.0/rr)**(1.0/3.0)
+					#print j, k, jk
+
+		e63 = 0.0
+		for iat in range(0,natom):
+			for jat in range(0,natom):
+				ij=lin(jat,iat)
+				if icomp[ij]==1:
+					for kat in range(jat,natom):
+						ik=lin(kat,iat)
+						jk=lin(kat,jat)
+						
+						if kat>jat and jat>iat and icomp[ik] != 0 and icomp[jk] != 0:
+							
+							rav=(4.0/3.0)/(dmp[ik]*dmp[jk]*dmp[ij])
+							tmp=1.0/( 1.0+6.0*rav**alpha6 )
+							
+							c9=cc6ab[ij]*cc6ab[ik]*cc6ab[jk]
+							d2 = [0]*3
+							d2[0]=r2ab[ij]
+							d2[1]=r2ab[jk]
+							d2[2]=r2ab[ik]
+							t1 = (d2[0]+d2[1]-d2[2])/math.sqrt(d2[0]*d2[1])
+							t2 = (d2[0]+d2[2]-d2[1])/math.sqrt(d2[0]*d2[2])
+							t3 = (d2[2]+d2[1]-d2[0])/math.sqrt(d2[1]*d2[2])
+							ang=0.375*t1*t2*t3+1.0
+							
+							
+							e63=e63+tmp*c9*ang/(d2[0]*d2[1]*d2[2])**1.50
+		self.repulsive_abc_term = s6 * e63 * autokcal
+		self.repulsive_abc = self.repulsive_abc + self.repulsive_abc_term
+
 
 if __name__ == "__main__":
 	
@@ -384,10 +426,7 @@ if __name__ == "__main__":
 		fileD3 = calcD3(file, s6, rs6, s8)
 		attractive_r6_vdw = fileD3.attractive_r6_vdw
 		attractive_r8_vdw = fileD3.attractive_r8_vdw
-		repulsive_vdw = fileD3.repulsive_vdw
-		total_vdw = attractive_r6_vdw + attractive_r8_vdw + repulsive_vdw
-		
-		print "o  Attractive R6 Part:", attractive_r6_vdw, "kcal/mol"
-		print "o  Attractive R8 Part:", attractive_r8_vdw, "kcal/mol"
-		print "o  Repulsive Part:",repulsive_vdw, "kcal/mol"
-		print "o  Total:", total_vdw,"kcal/mol \n"
+		repulsive_abc = fileD3.repulsive_abc
+		total_vdw = attractive_r6_vdw + attractive_r8_vdw + repulsive_abc
+		print "   Breakdown   Attractive-R6   Attractive-R8   Repulsive-3-Body   Total   (kcal/mol)"
+		print "  ",file, attractive_r6_vdw, attractive_r8_vdw,repulsive_abc, total_vdw
