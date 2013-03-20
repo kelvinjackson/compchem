@@ -199,7 +199,7 @@ def ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2):
 				rco = rco*k2
 				rr=rco/r
 				damp=1.0/(1.0+math.exp(-k1*(rr-1.0)))
-				print Zi, Ziat,r, rcov[Zi], rcov[Ziat], rco,rr, damp
+				#print Zi, Ziat,r, rcov[Zi], rcov[Ziat], rco,rr, damp
 				xn=xn+damp
 		
 		cn.append(xn)
@@ -252,8 +252,8 @@ class calcD3:
 		## Names are pretty obvious...
 		self.repulsive_vdw = 0.0; self.attractive_r6_vdw = 0.0; self.attractive_r8_vdw = 0.0
 		
-		print "o  Using the following C6 cooefficients"
-		print "   ID   Z    CN        C6"
+		#print "o  Using the following C6 cooefficients"
+		#print "   ID   Z    CN        C6"
 		mxc=[0]
 		for j in range(0,max_elem):
 			mxc.append(0)
@@ -262,7 +262,7 @@ class calcD3:
 					for l in range(0,maxc):
 						if isinstance(c6ab[j][j][l][l], (list, tuple)):
 							if c6ab[j][j][l][l][0]>0:
-								print "  ", atomtype[k],"  ", (j+1),"  ", c6ab[j][j][l][l][1],"  ", c6ab[j][j][l][l][0]
+								#print "  ", atomtype[k],"  ", (j+1),"  ", c6ab[j][j][l][l][1],"  ", c6ab[j][j][l][l][0]
 								mxc[j]=mxc[j]+1
 					break
 
@@ -270,7 +270,7 @@ class calcD3:
 		cn = ncoord(natom, rcov, atomtype, xco, yco, zco, max_elem, autoang, k1, k2)
 
 		## C6 - Need to calculate these from fractional coordination
-		print "\n   #                XYZ [au]                   R0(AA) [Ang.]  CN          C6(AA)     C8(AA)   C10(AA) [au]"
+		#print "\n   #                XYZ [au]                   R0(AA) [Ang.]  CN          C6(AA)     C8(AA)   C10(AA) [au]"
 
 		x=0
 		for j in range(0,natom):
@@ -290,12 +290,12 @@ class calcD3:
 			C8jj = 3.0*C6jj*math.pow(r2r4[z],2.0)
 			C10jj=49.0/40.0 * math.pow(C8jj,2.0)/C6jj
 
-			print "  ",(j+1), xco[j], yco[j], zco[j], atomtype[j], dum, cn[j], C6jj, C8jj, C10jj
+			#print "  ",(j+1), xco[j], yco[j], zco[j], atomtype[j], dum, cn[j], C6jj, C8jj, C10jj
 
-		print "\n   Molecular C6(AA) [au] =   ", x
+		#print "\n   Molecular C6(AA) [au] =   ", x
 
 		## Compute and output the individual components of the D3 energy correction ##
-		print "\n   Atoms  Types  C6            C8            E6              E8"
+		#print "\n   Atoms  Types  C6            C8            E6              E8"
 		for j in range(0,natom):
 			
 			## This could be used to 'switch off' dispersion between bonded or geminal atoms ##
@@ -311,7 +311,7 @@ class calcD3:
 				
 				
 				if k>j:
-					print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ",
+					#print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ",
 					
 					## Pythagoras in 3D to work out distance ##
 					xdist = xco[j]-xco[k]
@@ -331,7 +331,7 @@ class calcD3:
 					C8jk = 3.0*C6jk*r2r4[atomA]*r2r4[atomB]
 					C10jk=49.0/40.0 * math.pow(C8jk,2.0)/C6jk
 					
-					print C6jk, C8jk,
+					#print C6jk, C8jk,
 					
 					dist=totdist/autoang
 					rr = r[atomA][atomB]/dist
@@ -362,7 +362,7 @@ class calcD3:
 					self.repulsive_vdw = self.repulsive_vdw + self.repulsive_vdw_term
 					self.attractive_r6_vdw = self.attractive_r6_vdw + self.attractive_r6_term
 					self.attractive_r8_vdw = self.attractive_r8_vdw + self.attractive_r8_term
-					print self.attractive_r6_term, self.attractive_r8_term, self.repulsive_vdw_term
+					#print self.attractive_r6_term, self.attractive_r8_term, self.repulsive_vdw_term
 
 
 if __name__ == "__main__":
