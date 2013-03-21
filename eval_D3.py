@@ -243,8 +243,10 @@ class calcD3:
 			fileData = getoutData(file)
 			
 			if hasattr(fileData,"FUNCTIONAL"):
-
 				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default B3LYP D3 parameters:", 
+				if fileData.FUNCTIONAL == "M06-2X": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06-2X D3 parameters:",
+				if fileData.FUNCTIONAL == "M06L": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06L D3 parameters:",
+				if fileData.FUNCTIONAL == "M06": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06 D3 parameters:",
 		
 		print "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
 		## Arrays for atoms and Cartesian coordinates ##
@@ -310,7 +312,7 @@ class calcD3:
 		
 		#print "\n   Molecular C6(AA) [au] =   ", x
 
-		icomp = [0]*1000; cc6ab = [0]*1000; r2ab = [0]*1000; dmp = [0]*1000
+		icomp = [0]*100000; cc6ab = [0]*100000; r2ab = [0]*100000; dmp = [0]*100000
 					
 		## Compute and output the individual components of the D3 energy correction ##
 		#print "\n   Atoms  Types  C6            C8            E6              E8"
