@@ -289,7 +289,7 @@ class getoutData:
 		def getSPIN(self, outlines, format):
                         if format == "Gaussian":
                                 for i in range(0,len(outlines)):
-                                        if outlines[i].find(" Sx") > -1:
+                                        if outlines[i].find("<Sx>") > -1:
                                                 print outlines[i].split()
                                                 self.S2 = (float(outlines[i].split()[7]))
 
@@ -397,7 +397,7 @@ class getoutData:
 		def getSPIN(self, outlines, format):
                 	if format == "Gaussian":	
 				for i in range(0,len(outlines)):
-	                        	if outlines[i].find("Sx") > -1: 
+	                        	if outlines[i].find("<Sx>") > -1: 
 						self.S2 = (float(outlines[i].split()[7]))
 	
 		def getENERGY(self, outlines, format):
