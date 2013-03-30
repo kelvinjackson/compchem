@@ -244,10 +244,11 @@ class calcD3:
 			
 			if hasattr(fileData,"FUNCTIONAL"):
 				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default B3LYP D3 parameters:", 
-				if fileData.FUNCTIONAL == "M06-2X": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06-2X D3 parameters:",
-				if fileData.FUNCTIONAL == "M06L": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06L D3 parameters:",
-				if fileData.FUNCTIONAL == "M06": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default M06 D3 parameters:",
-		
+				if fileData.FUNCTIONAL == "M06-2X": s6 = 1.0000; rs6 = 1.6190; s8 = 0.0000; print "   \no  Using default M06-2X D3 parameters:",
+				if fileData.FUNCTIONAL == "M06L": s6 = 1.0000; rs6 = 1.5810; s8 = 0.0000; print "   \no  Using default M06L D3 parameters:",
+				if fileData.FUNCTIONAL == "M06": s6 = 1.0000; rs6 = 1.3250; s8 = 0.0000; print "   \no  Using default M06 D3 parameters:",
+				if fileData.FUNCTIONAL == "B97D": s6 = 1.0000; rs6 = 0.8920; s8 = 0.9090; print "   \no  Using default B97-D D3 parameters:",
+	
 		print "s6 =",s6, "rs6 = ", rs6, "s8 =",s8
 		## Arrays for atoms and Cartesian coordinates ##
 		atomtype = fileData.ATOMTYPES
@@ -424,6 +425,7 @@ class calcD3:
 if __name__ == "__main__":
 	
 	# Takes arguments: (1) s6, (2) rs6, (3) s8, (4) input file(s)
+	abc = 1
 	files = []
 	if len(sys.argv) > 4:
 		s6 = float(sys.argv[1])
@@ -435,12 +437,12 @@ if __name__ == "__main__":
 		print "\nWrong number of arguments used. Correct format: eval_D3 s6 rs6 s8 file(s)\n"
 		sys.exit()
 
-
 	for file in files:
 		fileD3 = calcD3(file, s6, rs6, s8)
-		attractive_r6_vdw = fileD3.attractive_r6_vdw
-		attractive_r8_vdw = fileD3.attractive_r8_vdw
-		repulsive_abc = fileD3.repulsive_abc
+		attractive_r6_vdw = fileD3.attractive_r6_vdw/autokcal
+		attractive_r8_vdw = fileD3.attractive_r8_vdw/autokcal
+		if abc == 1: repulsive_abc = fileD3.repulsive_abc/autokcal
+		else: repulsive_abc = 0.0
 		total_vdw = attractive_r6_vdw + attractive_r8_vdw + repulsive_abc
-		print "   Breakdown   Attractive-R6   Attractive-R8   Repulsive-3-Body   Total   (kcal/mol)"
+		print "   Breakdown   Attractive-R6   Attractive-R8   Repulsive-3-Body   Total   (Hartree)"
 		print "  ",file, attractive_r6_vdw, attractive_r8_vdw,repulsive_abc, total_vdw
