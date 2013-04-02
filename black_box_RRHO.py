@@ -43,8 +43,26 @@ GAS_CONSTANT = 8.3144621
 PLANCK_CONSTANT = 6.62606957e-34 
 BOLTZMANN_CONSTANT = 1.3806488e-23 
 SPEED_OF_LIGHT = 2.99792458e10
+AVOGADRO_CONSTANT = 6.0221415e23
+AMU_to_KG = 1.66053886E-27
 
-# harmonic entropy evaluation 
+# translational entropy evaluation (depends on concentration)
+def calc_translational_entropy(molecular_mass, conc, temperature):
+	"""
+	Calculates the translational entropic contribution (cal/(mol*K)) of an ideal gas
+	needs the molecular mass
+	Convert mass in amu to kg; conc in mol/l to number per m^3
+	Strans = R(Ln(2pimkT/h^2)^3/2(1/C)) + 3/2)
+	"""
+	simass = molecular_mass*AMU_to_KG
+	lmda = ((2.0*math.pi*simass*BOLTZMANN_CONSTANT*temperature)**0.5)/PLANCK_CONSTANT
+	Ndens = conc*1000*AVOGADRO_CONSTANT
+	entropy = GAS_CONSTANT*(2.5+math.log(lmda**3/Ndens))/4.184
+	
+	return entropy
+
+
+# harmonic entropy evaluation
 def calc_harmonic_entropy(frequency_wn, temperature):
 	"""
 	Calculates the entropic contribution (cal/(mol*K)) of a harmonic oscillator for
@@ -122,6 +140,7 @@ class calc_bbe:
 			if line.strip().startswith('Thermal correction to Energy='): self.energy_corr = float(line.strip().split()[4])
 			if line.strip().startswith('Thermal correction to Enthalpy='): enthalpy_corr = float(line.strip().split()[4])
 			if line.strip().startswith('Thermal correction to Gibbs Free Energy='): gibbs_corr = float(line.strip().split()[6])
+			if line.strip().startswith('Molecular mass:'): molecular_mass = float(line.strip().split()[2])
 
 		# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
 		Sv = calc_harmonic_entropy(frequency_wn, temperature)
@@ -138,12 +157,19 @@ class calc_bbe:
 		self.TSdiff = (sum(Sv)-sum(vib_entropy))*temperature/1000.0
 		#print self.TSdiff
 	
+		
+		c0 = 101.325/(GAS_CONSTANT*temperature)
+		c1 = conc
+		Stransdiff = calc_translational_entropy(molecular_mass, c0, temperature) - calc_translational_entropy(molecular_mass, c1, temperature)
+		
+		self.TSdiff = self.TSdiff + Stransdiff*temperature/1000.0
+			
 		self.new_gibbs_corr = gibbs_corr + self.TSdiff/627.51
 		self.enthalpy = self.scf_energy + enthalpy_corr
 		self.harmonic_gibbs_energy = self.scf_energy + gibbs_corr
 		self.gibbs_energy = self.scf_energy + self.new_gibbs_corr
 		self.entropy = (self.enthalpy - self.gibbs_energy)/temperature
-		
+
 
 if __name__ == "__main__":
 	
@@ -152,13 +178,15 @@ if __name__ == "__main__":
 	if len(sys.argv) > 3:
 		FREQ_CUTOFF = float(sys.argv[1])
 		temperature = float(sys.argv[2])
-		for i in range(3,len(sys.argv)):
+		conc = float(sys.argv[3])
+		
+		for i in range(4,len(sys.argv)):
 			files.append(sys.argv[i])
 	else:
-		print "\nWrong number of arguments used. Correct format: black_box_entropy cutoff_freq temp g09_output_files\n"
+		print "\nWrong number of arguments used. Correct format: black_box_entropy cutoff_freq temp concn g09_output_files\n"
 		sys.exit()
 	
-	print "\no  RRHO Free energies using cutoff frequency (cm-1):",FREQ_CUTOFF, " at temperature (K):", temperature
+	print "\no  RRHO Free energies using cutoff frequency (cm-1):",FREQ_CUTOFF, " at temperature (K):", temperature, " and conc. (mol/l)", conc
 	for file in files:
 		bbe = calc_bbe(file, FREQ_CUTOFF, temperature)
 		print "o ",file.split(".")[0],

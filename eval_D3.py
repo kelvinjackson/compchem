@@ -13,7 +13,7 @@
 # THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
@@ -25,12 +25,16 @@
 #                        eval_D3.py                                   #
 #     Kelvin Jackson & Robert Paton, University of Oxford, 2012       #
 #                                                                     #
-#    For a Gaussian formatted input file this program will            #
+#    This is an attempt to translate the original D3 Fortran code of  #
+#    Grimme, as described in Stefan Grimme, Jens Antony, Stephan      #
+#    Ehrlich, and Helge Krieg, J. Chem. Phys. 132, 154104 (2010)      #
+#                                                                     #
+#    For a Gaussian formatted input/output file this program will     #
 #    compute Grimme's D3 attractive interaction                       #
 #    All attractive potentials, cutoffs, damping, connectivity are    #
-#    adapted from Grimme's DFT-D3                                     #
-#    Where connectivity is available, it can be used to scale         #
-#    certain interactions and compute steric repulsions               #
+#    taken directly from Grimme's DFT-D3 program                      #
+#    Where connectivity is available (*com), it can be used to scale  #
+#   interactions and compute steric repulsions (under devlopment)     #
 #######################################################################
 #######  Written by:  Rob Paton #######################################
 #######  Last modified:  Mar 20, 2013 #################################
@@ -238,8 +242,8 @@ class calcD3:
 			file = file.split(".com")[0]
 			fileData = getinData(file)
 				
-		if len(file.split(".out"))>1:
-			file = file.split(".out")[0]
+		if len(file.split(".out"))>1 or len(file.split(".log"))>1:
+			file = file.split(".")[0]
 			fileData = getoutData(file)
 			
 			if hasattr(fileData,"FUNCTIONAL"):
