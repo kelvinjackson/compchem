@@ -414,6 +414,7 @@ class getoutData:
 					if outlines[i].find("ONIOM") > -1: oniom = i
 					if outlines[i].find("SCF Done") > -1: scf = i
 					if outlines[i].find("(RB3LYP)") > -1: self.FUNCTIONAL = "B3LYP"
+					if outlines[i].find("(RB2PLYP)") > -1: self.FUNCTIONAL = "B2PLYP"
 					if outlines[i].find("(RM06)") > -1: self.FUNCTIONAL = "M06"
 					if outlines[i].find("(RM062X)") > -1: self.FUNCTIONAL = "M06-2X"
 					if outlines[i].find("(RM06L)") > -1: self.FUNCTIONAL = "M06L"
