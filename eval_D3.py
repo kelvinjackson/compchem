@@ -248,6 +248,7 @@ class calcD3:
 			
 			if hasattr(fileData,"FUNCTIONAL"):
 				if fileData.FUNCTIONAL == "B3LYP": s6 = 1.0000; rs6 = 1.2610; s8 = 1.7030; print "   \no  Using default B3LYP D3 parameters:",
+				if fileData.FUNCTIONAL == "BP86": s6 = 1.0000; rs6 = 1.139; s8 = 1.683; print "   \no  Using default BP86 D3 parameters:",
 				if fileData.FUNCTIONAL == "B2PLYP": s6 = 0.5000; rs6 = 1.551; s8 = 1.1090; print "   \no  Using default B2PLYP/TZVPP D3 parameters:",
 				if fileData.FUNCTIONAL == "M06-2X": s6 = 1.0000; rs6 = 1.6190; s8 = 0.0000; print "   \no  Using default M06-2X D3 parameters:",
 				if fileData.FUNCTIONAL == "M06L": s6 = 1.0000; rs6 = 1.5810; s8 = 0.0000; print "   \no  Using default M06L D3 parameters:",
