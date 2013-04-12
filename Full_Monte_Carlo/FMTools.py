@@ -22,7 +22,6 @@
 # robert.paton@chem.ox.ac.uk
 
 
-###############################################################
 #                        FMTools.py                           #
 #       Libraries and methods for Full Monte Carlo            #
 ###############################################################
@@ -35,8 +34,8 @@ import subprocess, sys, os, commands, math, time, tarfile, random
 ###############################################################
 	
 # EXECECTUBALE ################################################
-MOPAC_EXEC = '/opt/mopac/MOPAC2009.exe'
 G09_EXEC = 'qg09'
+MOPAC_EXEC = '/opt/mopac/MOPAC2012.exe'
 ###############################################################
 
 # The time elapsed between two specified Y/M/D 24H/M/S format #
@@ -948,7 +947,7 @@ class SETUPEXE:
 		print "\no  Modifying path to Mopac exectubale ...\n"
 		thisfile = open(fmlocation+"/FMTools.py","r") 
 		theselines = thisfile.readlines()
-		theselines[24] = "MOPAC_EXEC = \'"+executable+"\'\n"
+		theselines[38] = "MOPAC_EXEC = \'"+executable+"\'\n"
 		replacethisfile = open(fmlocation+"/FMTools.py","w")
 		for line in theselines: replacethisfile.write(line)
 		sys.exit()
@@ -1058,13 +1057,17 @@ class Writeintro:
 		if Variables.NMOLS > 1:
 			log.Write("   | o  "+("Detected "+str(Variables.NMOLS)+" separate molecules - this adds additional search coordinates").ljust(leftcol)+("|").rjust(rightcol));
 			for i in range(0,len(molarray)): log.Write("   |  "+molarray[i].ljust(leftcol)+("|").rjust(rightcol-1))
-		log.Write("   | o  "+("DEMX: "+str(Params.DEMX)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
-		if len(Params.EQUI) > 0:
-			log.Write("   | o  "+("EQUI: The following sets of atoms are equivalent ").ljust(leftcol)+("|").rjust(rightcol))
-			log.Write("   |    "+equistring.ljust(leftcol)+("|").rjust(rightcol))
-		log.Write("   | o  "+("EWIN: "+str(Params.EWIN)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
 		log.Write("   | o  "+("LEVL: "+str(Params.LEVL)+" model chemistry").ljust(leftcol)+("|").rjust(rightcol))
-		log.Write("   | o  "+("MCSS: "+Params.MCSS+" within "+str(Params.EWIN)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
+		if Params.CSEARCH == "MCMM":
+			log.Write("   | o  "+("DEMX: "+str(Params.DEMX)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
+			if len(Params.EQUI) > 0:
+				log.Write("   | o  "+("EQUI: The following sets of atoms are equivalent ").ljust(leftcol)+("|").rjust(rightcol))
+				log.Write("   |    "+equistring.ljust(leftcol)+("|").rjust(rightcol))
+			log.Write("   | o  "+("EWIN: "+str(Params.EWIN)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
+			log.Write("   | o  "+("MCSS: "+Params.MCSS+" within "+str(Params.EWIN)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
+			
+		if Params.CSEARCH == "SUMM":
+			log.Write("   | o  "+("ITVL: "+str(Params.ITVL)+" degrees").ljust(leftcol)+("|").rjust(rightcol))
 		log.Write("   | o  "+("MCNV: "+str(Variables.MCNV)).ljust(leftcol)+("|").rjust(rightcol))
 		log.Write("   |    "+torstring.ljust(leftcol)+("|").rjust(rightcol))
 		log.Write("   | o  "+("PROC: "+str(Params.POOL)+" processors will be used").ljust(leftcol)+("|").rjust(rightcol))
@@ -1381,6 +1384,7 @@ class getParams:
 		#Default Parameters
 		self.CSEARCH = "MCMM"
 		self.MCSS="Uniform Usage Directed"
+		self.ITVL=30.0
 		self.EWIN=20.0
 		self.COMP=10.0
 		self.DEMX=41.84
@@ -1475,12 +1479,15 @@ class getoutData:
 			self.CARTESIANS = []
 			if format == "Mopac":
 				for i in range(0,len(outlines)):
-					if outlines[i].find("CARTESIAN COORDINATES") > -1: standor = i
-					if outlines[i].find("ATOMIC ORBITAL ELECTRON POPULATIONS") > -1: self.NATOMS = i-standor-6
+					if outlines[i].find("CHEMICAL") > -1: standor = i+3
+					if outlines[i].find("Empirical Formula") > -1:
+						self.NATOMS = int((outlines[i].split("="))[1].split()[0])
+				
 				if hasattr(self, "NATOMS"):
-					for i in range (standor+4,standor+4+self.NATOMS):
+					for i in range (standor,standor+self.NATOMS):
 						self.ATOMTYPES.append((outlines[i].split()[1]))
-						self.CARTESIANS.append([float(outlines[i].split()[2]), float(outlines[i].split()[3]), float(outlines[i].split()[4])])
+						self.CARTESIANS.append([float(outlines[i].split()[2]), float(outlines[i].split()[4]), float(outlines[i].split()[6])])
+			
 			if format == "Gaussian":
 				for i in range(0,len(outlines)):
 					if outlines[i].find("Standard orientation") > -1:
