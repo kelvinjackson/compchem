@@ -22,6 +22,7 @@
 # robert.paton@chem.ox.ac.uk
 
 
+###############################################################
 #                        FMTools.py                           #
 #       Libraries and methods for Full Monte Carlo            #
 ###############################################################
@@ -1384,7 +1385,7 @@ class getParams:
 		#Default Parameters
 		self.CSEARCH = "MCMM"
 		self.MCSS="Uniform Usage Directed"
-		self.ITVL=30.0
+		self.ITVL=30
 		self.EWIN=20.0
 		self.COMP=10.0
 		self.DEMX=41.84
@@ -1406,6 +1407,8 @@ class getParams:
 			
 			
 			for line in instructlines:
+				if line.find("SUMM") > -1: self.CSEARCH = "SUMM"
+				if line.find("ITVL") > -1: self.ITVL = int(line.split("=")[1].rstrip('\n').lstrip())
 				if line.find("LEVL") > -1: self.LEVL = line.split("=")[1].rstrip('\n').lstrip()
 				if line.find("NNBO") > -1: self.NNBO = int(line.split("=")[1].rstrip('\n').lstrip())
 				if line.find("STEP") > -1: self.STEP = int(line.split("=")[1].rstrip('\n').lstrip())
