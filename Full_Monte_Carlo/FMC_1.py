@@ -201,6 +201,7 @@ CSEARCH.ALLCPU = [getoutData(MOLSPEC).CPU]
 CSEARCH.LASTFOUND = 0
 CSEARCH.CLASH = [0]
 
+
 # Stop once number of steps exceeded or no new conformers found	
 while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 	log.Write("o  STEP "+str(CSEARCH.STEP)+": Generating "+str(SEARCHPARAMS.POOL)+" structures ...")
@@ -249,6 +250,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 # The coordinates of the lowest energy, least used structure will be altered
 				CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[startgeom]
 				CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[startgeom]
+				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
 				nrandom = random.randint(FMVAR.MCNVmin, FMVAR.MCNVmax)
 					
 				if FMVAR.MCNV != 0:

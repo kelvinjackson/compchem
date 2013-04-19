@@ -158,7 +158,7 @@ def checkDists(MolSpec, SearchParams):
 					if MolSpec.ATOMTYPES[i]=="N" or MolSpec.ATOMTYPES[i]=="O" or MolSpec.ATOMTYPES[i]=="S":
 						if MolSpec.ATOMTYPES[j]=="H": bump=0.75*bump
 					if MolSpec.ATOMTYPES[j]=="N" or MolSpec.ATOMTYPES[j]=="O" or MolSpec.ATOMTYPES[j]=="S":
-						if MolSpec.ATOMTYPES[i]=="H": bump=0.75*bump	
+						if MolSpec.ATOMTYPES[i]=="H": bump=0.75*bump
 				if totdist<bump: 
 					checkval = checkval+1
 					#print "   PREOPT: Rejecting structure!",MolSpec.ATOMTYPES[i],(i+1),MolSpec.ATOMTYPES[j],(j+1),"distance =", totdist,"Ang"
@@ -914,9 +914,10 @@ class CleanUp:
 			
 			
 			for i in range(0,CSearch.STEP*SearchParams.POOL+1):
-				if os.path.isfile(filein+"_step_"+str(i)+".out") == 1: 
+				if os.path.isfile(filein+"_step_"+str(i)+".out") == 1: os.remove(filein+"_step_"+str(i)+".out")
 					#print "found and deleting", filein+"_step_"+str(i)+".out"
-					os.remove(filein+"_step_"+str(i)+".out")
+				if os.path.isfile(filein+"_step_"+str(i)+".log") == 1: os.remove(filein+"_step_"+str(i)+".log")
+	
 
 		except: print "ERROR IN ZIPPING!!!"
 
@@ -1296,10 +1297,17 @@ class getinData:
 				
 				self.ATOMTYPES = []
 				self.LEVELTYPES = []
+				self.MMTYPES = []
 				for i in range(start,len(inlines)):
 					if len(inlines[i].split()) ==0: break
 					else:
-						self.ATOMTYPES.append(inlines[i].split()[0])
+						atominfo = inlines[i].split()[0]
+						atominfo = atominfo.split("-")[0]
+						if len(inlines[i].split()[0].split(atominfo))>1:
+							mminfo = inlines[i].split()[0].lstrip(atominfo)
+							self.MMTYPES.append(mminfo)
+						
+						self.ATOMTYPES.append(atominfo)
 						level = ""
 						for oniomlevel in ["H", "M", "L"]:
 							if inlines[i][4:].rfind(oniomlevel)>1:
@@ -1617,8 +1625,10 @@ class writeInput:
 			fileout.write(MolSpec.NAME+"\n\n")
 			fileout.write(str(MolSpec.CHARGE)+" "+str(MolSpec.MULT)+"\n")
 			
+			#print MolSpec.MMTYPES
 			for i in range(0,MolSpec.NATOMS):
 				fileout.write(" "+MolSpec.ATOMTYPES[i])
+				if hasattr(MolSpec, "MMTYPES"): fileout.write(MolSpec.MMTYPES[i])
 				for j in range(0,3): fileout.write("  "+str(round(MolSpec.CARTESIANS[i][j],6)))
 				if hasattr(MolSpec,"LEVELTYPES"):
 					if len(MolSpec.LEVELTYPES) != 0: fileout.write("  "+MolSpec.LEVELTYPES[i])
@@ -1760,6 +1770,7 @@ def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
                 CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i+k]
                 CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
                 CONFSPEC.MULT = MOLSPEC.MULT
+                CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
                 writeInput(JOB, CONFSPEC)
                 submitJob(JOB, CONFSPEC, log)
         
