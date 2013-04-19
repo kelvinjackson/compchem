@@ -89,9 +89,11 @@ if __name__ == "__main__":
 ###############################################################	
 		
 # Model Chemistry to be used ##################################
-	for level in ["AM1", "PM3", "PM6"]:
-		if SEARCHPARAMS.LEVL.upper() == level: JOB = JobSpec("Mopac")	
-	if JOB.PROGRAM != "Mopac": log.Fatal("\no  "+SEARCHPARAMS.LEVL+"Level of Theory Not Yet Supported ... ")
+	for level in ["AM1", "PM3", "PM6", "PM7"]:
+		if SEARCHPARAMS.LEVL.upper() == level: JOB = JobSpec("Mopac")
+	for level in ["UFF"]:
+		if SEARCHPARAMS.LEVL.upper() == level: JOB = JobSpec("Gaussian")
+	if JOB.PROGRAM != "Mopac" and JOB.PROGRAM != "Gaussian": log.Fatal("\no  "+SEARCHPARAMS.LEVL+" Level of Theory Not Yet Supported ... ")
 	JOB.JOBTYPE = SEARCHPARAMS.LEVL
 	log.Write("\no  Using "+JOB.JOBTYPE+" level of theory ... ")
 ###############################################################	
@@ -102,6 +104,15 @@ if __name__ == "__main__":
 		if var.lower() == "y" or var.lower() == "": JOB.JOBTYPE = "PM6-DH2"; log.Write("   Dispersion and H-bond correction on ... ") 
 ###############################################################	
 	
+# Solvation with CPCM #########################################
+if JOB.PROGRAM == "Gaussian" and interactivemode == 1:
+	var = raw_input("\no  Use CPCM solvation ? (Y/N) ")
+	if var.lower() == "y" or var.lower() == "":
+		EPS = raw_input("\n   Enter solvent name (default=diethylether) ")
+		if EPS == "": EPS = "(cpcm,solvent=diethylether)"
+		JOB.JOBTYPE = JOB.JOBTYPE+" scrf"+EPS; log.Write("   CPCM solvation correction on ... ")
+###############################################################
+
 # Solvation with COSMO ########################################
 	if JOB.PROGRAM == "Mopac" and interactivemode == 1:
 		var = raw_input("\no  Use COSMO solvation ? (Y/N) ")
@@ -125,10 +136,16 @@ if __name__ == "__main__":
 	if hasattr(MOLSPEC, "CONSTRAINED"):
 		JOB.CONSTRAINED = MOLSPEC.CONSTRAINED
 		for const in MOLSPEC.CONSTRAINED: 
+			if len(const) == 1: log.Write("\no  The Cartesian position of "+str(const[0]+1)+" will be constrained ...")
 			if len(const) == 2: log.Write("\no  The distance "+str(const[0]+1)+"-"+str(const[1]+1)+" will be constrained ...")
 			if len(const) == 3: log.Write("\no  The angle "+str(const[0]+1)+"-"+str(const[1]+1)+"-"+str(const[2]+1)+" will be constrained ...")
 			if len(const) == 4: log.Write("\no  The dihedral "+str(const[0]+1)+"-"+str(const[1]+1)+"-"+str(const[2]+1)+"-"+str(const[3]+1)+" will be constrained ...")
+		if JOB.PROGRAM == "Gaussian":
+			if len(MOLSPEC.CONSTRAINED)!=0: JOB.JOBTYPE = "opt(modredundant,loose) "+JOB.JOBTYPE
+			else: JOB.JOBTYPE = "opt(loose) "+JOB.JOBTYPE
 ###############################################################
+
+if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = "# geom=connectivity "+JOB.JOBTYPE
 
 # Monte Carlo or Systematic (for comparison) ##################
 if interactivemode == 1:
@@ -149,7 +166,7 @@ if isJobFinished(JOB, MOLSPEC) == 2: log.Fatal("\nFATAL ERROR: Optimization of [
 # Read the output from the optimization then clean up #########
 MOLSPEC.CARTESIANS =  getoutData(MOLSPEC).CARTESIANS
 MOLSPEC.ENERGY =  getoutData(MOLSPEC).ENERGY
-for suffix in [".com", ".mop", ".arc", ".joblog", ".errlog", ".chk", ".log"]:
+for suffix in [".com", ".mop", ".arc", ".joblog", ".errlog", ".chk"]:
 	if os.path.exists(MOLSPEC.NAME+suffix): os.remove(MOLSPEC.NAME+suffix)
 ###############################################################
 	
@@ -331,11 +348,11 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 ###############################################################
 
 #Tidy up the geometries and output the results ################
-	if CSEARCH.STEP % 100 == 0: 
+	if CSEARCH.STEP % 100 == 0:
 		todel=[]
 		#print (CSEARCH.NAME)
 		for i in range(0,len(CSEARCH.NAME)):
-			if ((CSEARCH.ENERGY[i] - CSEARCH.GLOBMIN)*2625.5) > SEARCHPARAMS.DEMX or (i > 499): 
+			if ((CSEARCH.ENERGY[i] - CSEARCH.GLOBMIN)*2625.5) > SEARCHPARAMS.DEMX or (i > 199):
 				#print CSEARCH.NAME[i], "earmarked for deletion"
 				todel.append(i)
 		if len(todel) !=0: RemoveConformer(CSEARCH, todel)
@@ -364,6 +381,7 @@ multmin = 1
 if multmin == 1:
 	log.Write("\no  Reoptimizing conformers with strict convergence crtieria ...")
 	if JOB.PROGRAM == "Mopac": JOB.JOBTYPE = JOB.JOBTYPE+" gnorm=0.0 "
+	if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = JOB.JOBTYPE.replace("loose", "")
 	MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log)
 	#OrderConfs(CSEARCH, SEARCHPARAMS, start, log)	
 	CSEARCH.GLOBMIN = CSEARCH.ENERGY[0]

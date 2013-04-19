@@ -35,7 +35,7 @@ import subprocess, sys, os, commands, math, time, tarfile, random
 ###############################################################
 	
 # EXECECTUBALE ################################################
-G09_EXEC = 'qg09'
+G09_EXEC = 'g09'
 MOPAC_EXEC = '/opt/mopac/MOPAC2012.exe'
 ###############################################################
 
@@ -100,28 +100,36 @@ def submitJob(JobSpec,MolSpec,log):
 
 # Check that a computational chemistry job has finished #######
 def isJobFinished(JobSpec, MolSpec): 
-	if not os.path.exists(MolSpec.NAME+".out"): return 0
-	else: 
-		outfile = open(MolSpec.NAME+".out","r") 
+	if JobSpec.PROGRAM == "Mopac":
+		if not os.path.exists(MolSpec.NAME+".out"): return 0
+		else: 
+			outfile = open(MolSpec.NAME+".out","r") 
+			jobdone=0; normal=0
+			for line in outfile.readlines():
+				if JobSpec.PROGRAM == "Mopac":
+					if line.find("== MOPAC DONE ==") > -1:
+						jobdone = jobdone+1
+						normal=normal+1
+					if line.find("EXCESS NUMBER OF OPTIMIZATION CYCLES") > -1:
+						jobdone = jobdone+1
+						normal=normal-1
+				outfile.close()
+
+	if JobSpec.PROGRAM == "Gaussian":
+		outfile = open(MolSpec.NAME+".log","r")
 		jobdone=0; normal=0
 		for line in outfile.readlines():
-			if JobSpec.PROGRAM == "Mopac":
-				if line.find("== MOPAC DONE ==") > -1:
-					jobdone = jobdone+1
-					normal=normal+1
-				if line.find("EXCESS NUMBER OF OPTIMIZATION CYCLES") > -1:
-					jobdone = jobdone+1
-					normal=normal-1
-			if JobSpec.PROGRAM == "Gaussian":
-				if line.find("Normal termination") > -1:
-					jobdone = jobdone+1
-					normal=normal+1
+			if line.find("Normal termination") > -1:
+				jobdone = jobdone+1
+				normal=normal+1
 		outfile.close()
-	
+
 	if jobdone>0 and normal>0: return 1
 	if jobdone>0 and normal==0: return 2
 	else:
-		modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".out")
+		if JobSpec.PROGRAM == "Mopac": modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".out")
+		if JobSpec.PROGRAM == "Gaussian": modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".log")
+
 		#print modtime
 		for mod in modtime.split(): 
 			if mod.find(":") > -1: timeofday = mod		
@@ -842,31 +850,36 @@ class RemoveConformer:
 	def __init__(self, CSEARCH, todel):
 		j=0
 		#print todel
+		#print len(CSEARCH.NAME)-len(todel)
 		newtodel=[]
-		#for i in range(len(todel)-1, -1, -1): newtodel.append(todel[i])
+		for i in range(len(todel)-1, -1, -1): newtodel.append(todel[i])
 		#print newtodel
-		#print CSEARCH.NAME
-		for i in todel: 
-			#Remove outfile associated with this conformer
-			if os.path.isfile(CSEARCH.NAME[i-j]+".out") == 1: os.remove(CSEARCH.NAME[i-j]+".out")
-			#print len(CSEARCH.NAME)
-			#print "removing", (i-j), CSEARCH.NAME[i-j]+".out"
-			CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i-j]
-			CSEARCH.NAME.pop(i-j)
-			CSEARCH.ENERGY.pop(i-j)
-			CSEARCH.CARTESIANS.pop(i-j)
-			CSEARCH.CONNECTIVITY.pop(i-j)
-			CSEARCH.USED.pop(i-j)
-			CSEARCH.CPU.pop(i-j)
-			CSEARCH.TIMESFOUND.pop(i-j)			
-			CSEARCH.TORVAL.pop(i-j)
-			CSEARCH.NSAVED = CSEARCH.NSAVED - 1
-			#j=j+1
+		#print len(CSEARCH.NAME), CSEARCH.NAME
+		#print CSEARCH.NAME[todel[0]:]
+		#print CSEARCH.NAME[:todel[0]]
+
+		for i in range(0,len(todel)):
+			#print i, todel[i], CSEARCH.TIMESFOUND[todel[i]]
+			CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[todel[i]]
+
+		del CSEARCH.NAME[todel[0]:]
+		#print len(CSEARCH.NAME), CSEARCH.NAME
+		del CSEARCH.ENERGY[todel[0]:]
+		#print len(CSEARCH.ENERGY), CSEARCH.ENERGY
+		del CSEARCH.CARTESIANS[todel[0]:]
+		del CSEARCH.CONNECTIVITY[todel[0]:]
+		del CSEARCH.USED[todel[0]:]
+		del CSEARCH.CPU[todel[0]:]
+		del CSEARCH.TIMESFOUND[todel[0]:]
+		del CSEARCH.TORVAL[todel[0]:]
+		#print len(CSEARCH.CONNECTIVITY),len(CSEARCH.USED), len(CSEARCH.CPU), len(CSEARCH.TIMESFOUND), len(CSEARCH.TORVAL)
+		CSEARCH.NSAVED = CSEARCH.NSAVED - len(todel)
+		
 
 class CleanAfterJob:	
 	def __init__(self, Job, Confspec, samecheck, toohigh, isomerize):					
 		try:
-			for suffix in [".com", ".mop", ".arc", ".temp", ".end", ".log", ".chk", ".joblog", ".errlog"]: 
+			for suffix in [".com", ".mop", ".arc", ".temp", ".end", ".chk", ".joblog", ".errlog"]: 
 				if os.path.exists(Confspec.NAME+suffix): os.remove(Confspec.NAME+suffix)
 
 			# If discarded remove the outfile as well		
@@ -890,11 +903,13 @@ class CleanUp:
 			tar = tarfile.open(filein+"_fm.tgz", "w|gz")			
 			for saved in CSEARCH.NAME: 
 				#print "TARRING", saved+".out"
-				if os.path.isfile(saved+".out") == 1: 
-					#print "found and zipping", saved+".out"
-					tar.add(saved+".out")
-					#print commands.getoutput("ls -l -t "+filein+"_fm.tgz")
-					time.sleep(0.1)
+				if os.path.isfile(saved+".out") == 1: tar.add(saved+".out")
+				#print "found and zipping", saved+".out"
+				#print commands.getoutput("ls -l -t "+filein+"_fm.tgz")
+				if os.path.isfile(saved+".log") == 1: tar.add(saved+".log")
+				#print "found and zipping", saved+".out"
+				#print commands.getoutput("ls -l -t "+filein+"_fm.tgz")
+				time.sleep(0.1)
 			tar.close()	
 			
 			
@@ -1351,6 +1366,7 @@ class getinData:
 			if fileformat == ".com":
 				self.CONSTRAINED = []
 				for line in optional:
+					if line.find("X") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1])
 					if line.find("B") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1])
 					if line.find("A") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1]),int(line.split(" ")[3])-1
 					if line.find("D") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1, int(line.split(" ")[3])-1, int(line.split(" ")[4])-1])
@@ -1449,10 +1465,7 @@ class getoutData:
 	def __init__(self, MolSpec):
 		
 		self.NAME = MolSpec.NAME
-		
-		if not os.path.exists(self.NAME+".out"):
-			print ("\nFATAL ERROR: Output file [ %s ] does not exist"%file)
-		
+				
 		def getFORMAT(self, outlines):
 			for i in range(0,len(outlines)):
 				if outlines[i].find("MOPAC") > -1: self.FORMAT = "Mopac"; break
@@ -1567,8 +1580,16 @@ class getoutData:
 						self.SOLVENERGY = (float(outlines[i+1].split()[7]))
 
 		
-		outfile = open(self.NAME+".out","r")
-		outlines = outfile.readlines()
+		if not os.path.exists(self.NAME+".out") and not os.path.exists(self.NAME+".log"):
+			print ("\nFATAL ERROR: Output file [ %s ] does not exist"%file)
+
+		if os.path.exists(self.NAME+".out"):
+			outfile = open(self.NAME+".out","r")
+			outlines = outfile.readlines()
+		if os.path.exists(self.NAME+".log"):
+			outfile = open(self.NAME+".log","r");
+			outlines = outfile.readlines()
+
 		
 		getFORMAT(self, outlines)
 		if hasattr(self, "FORMAT"):
@@ -1591,7 +1612,7 @@ class writeInput:
 			if hasattr(JobSpec, "Mem"): fileout.write("%mem = "+JobSpec.Mem+"\n")
 			if hasattr(JobSpec, "Nproc"): fileout.write("%nproc = "+JobSpec.Nproc+"\n")
 			
-			for route in JobSpec.JOBTYPE: fileout.write(route+" ")
+			for route in JobSpec.JOBTYPE.split(): fileout.write(route+" ")
 			fileout.write("\n\n")
 			fileout.write(MolSpec.NAME+"\n\n")
 			fileout.write(str(MolSpec.CHARGE)+" "+str(MolSpec.MULT)+"\n")
@@ -1599,7 +1620,8 @@ class writeInput:
 			for i in range(0,MolSpec.NATOMS):
 				fileout.write(" "+MolSpec.ATOMTYPES[i])
 				for j in range(0,3): fileout.write("  "+str(round(MolSpec.CARTESIANS[i][j],6)))
-				if len(MolSpec.LEVELTYPES) != 0: fileout.write("  "+MolSpec.LEVELTYPES[i])
+				if hasattr(MolSpec,"LEVELTYPES"):
+					if len(MolSpec.LEVELTYPES) != 0: fileout.write("  "+MolSpec.LEVELTYPES[i])
 				fileout.write("\n")
 			fileout.write("\n")
 			
@@ -1616,6 +1638,7 @@ class writeInput:
 			
 			if len(JobSpec.CONSTRAINED) > 0:
 				for const in JobSpec.CONSTRAINED:
+					if len(const) == 1: fileout.write("X "+str(const[0]+1)+" F\n")
 					if len(const) == 2: fileout.write("B "+str(const[0]+1)+" "+str(const[1]+1)+" F\n")
 				fileout.write("\n")
 			
@@ -1803,14 +1826,18 @@ def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
                         CSEARCH.TIMESFOUND[j] = CSEARCH.TIMESFOUND[j] + CSEARCH.TIMESFOUND[i]
                         CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
                         todel.append(i)
+                        CSEARCH.ENERGY[i] = 999999.9
                         break
 		
         # Rejection - discard
         else:
             CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
+            CSEARCH.ENERGY[i] = 999999.9
             log.Write("\n   "+(CSEARCH.NAME[i]+" is now discarded ... ").ljust(50))
             todel.append(i)
     #print todel
-    if len(todel) !=0: RemoveConformer(CSEARCH, todel)
+    if len(todel) !=0:
+		OrderConfs(CSEARCH, SEARCHPARAMS, start, log)
+		RemoveConformer(CSEARCH, todel)
 
 
