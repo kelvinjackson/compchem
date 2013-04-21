@@ -1261,7 +1261,7 @@ class getinData:
 		def getJOBTYPE(self, inlines):
 			if fileformat == ".com":
 				for i in range(0,len(inlines)):
-					if inlines[i].find("#") > -1: self.JOBTYPE = inlines[i].split()
+					if inlines[i].find("#") > -1: self.JOBTYPE = inlines[i]
 		
 		
 		def getCHARGE(self, inlines):
@@ -1378,7 +1378,6 @@ class getinData:
 					if line.find("B") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1])
 					if line.find("A") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1]),int(line.split(" ")[3])-1
 					if line.find("D") > -1 and line.find("F") > -1: self.CONSTRAINED.append([int(line.split(" ")[1])-1,int(line.split(" ")[2])-1, int(line.split(" ")[3])-1, int(line.split(" ")[4])-1])
-		
 		
 		for suffix in [".com", ".pdb"]:
 			if os.path.exists(file+suffix): fileformat = suffix
@@ -1509,8 +1508,9 @@ class getoutData:
 				
 				if hasattr(self, "NATOMS"):
 					for i in range (standor,standor+self.NATOMS):
+						outlines[i] = outlines[i].replace("*", " ")
 						self.ATOMTYPES.append((outlines[i].split()[1]))
-						self.CARTESIANS.append([float(outlines[i].split()[2]), float(outlines[i].split()[4]), float(outlines[i].split()[6])])
+						self.CARTESIANS.append([float(outlines[i].split()[2]), float(outlines[i].split()[3]), float(outlines[i].split()[4])])
 			
 			if format == "Gaussian":
 				for i in range(0,len(outlines)):
@@ -1629,7 +1629,9 @@ class writeInput:
 			for i in range(0,MolSpec.NATOMS):
 				fileout.write(" "+MolSpec.ATOMTYPES[i])
 				if hasattr(MolSpec, "MMTYPES"): fileout.write(MolSpec.MMTYPES[i])
-				for j in range(0,3): fileout.write("  "+str(round(MolSpec.CARTESIANS[i][j],6)))
+				for j in range(0,3):
+					if math.fabs(MolSpec.CARTESIANS[i][j]) > 0.0001: fileout.write("  "+str(round(MolSpec.CARTESIANS[i][j],6)))
+					else: fileout.write("  "+str(0.000000))
 				if hasattr(MolSpec,"LEVELTYPES"):
 					if len(MolSpec.LEVELTYPES) != 0: fileout.write("  "+MolSpec.LEVELTYPES[i])
 				fileout.write("\n")
@@ -1683,14 +1685,16 @@ class writeInput:
 			
 			fileout.write("\n"+MolSpec.NAME+"\n\n")
 			
-			
+			freezeindex = []
 			for i in range(0,MolSpec.NATOMS):
 				if MolSpec.ATOMTYPES[i].find("-"): MolSpec.ATOMTYPES[i]=MolSpec.ATOMTYPES[i].split("-")[0]
 				fileout.write(MolSpec.ATOMTYPES[i])
 				
-				cart = 1; freezedist = 0; freezetorsion = 0; freezeangle = 0
+				cart = 1; freezecoord = 0; freezedist = 0; freezetorsion = 0; freezeangle = 0
 				for const in JobSpec.CONSTRAINED:
 					#print const
+					if len(const) == 1:
+						freezecoord = 1; freezeindex.append(const)
 					if len(const) == 2:
 						if const[0] == i and const[1] < i: cart = 0; freezedist = 1; internal = const[1]; j = const[0]
 						if const[1] == i and const[0] < i: cart = 0; freezedist = 1; internal = const[1]; j = const[0]
@@ -1703,7 +1707,12 @@ class writeInput:
 				
 				#For all unconstrained coordinates print out Cartesian coordinates
 				if cart == 1:
-					for n in range(0,3): fileout.write("  "+str(round(MolSpec.CARTESIANS[i][n],6))+"  1")
+					optmz = "1"
+					#print freezeindex
+					for frozenatom in freezeindex:
+						#print frozenatom
+						if frozenatom[0] == i: optmz = "0"
+					for n in range(0,3): fileout.write("  "+str(round(MolSpec.CARTESIANS[i][n],6))+"  "+optmz)
 				
 				#For all constrained coordinates define Internal coordinates
 				else:

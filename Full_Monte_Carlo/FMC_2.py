@@ -25,7 +25,6 @@ import subprocess, sys, os, random, math, tarfile
 
 # Full Monte Libaries #########################################
 from FMTools import *
-from FMOutput import *
 ###############################################################
 
 if __name__ == "__main__":
@@ -69,8 +68,8 @@ if __name__ == "__main__":
 	OLDSEARCH.CARTESIANS = []
 	OLDSEARCH.NAME = []
 	OLDSEARCH.TIMESFOUND = []
-	OLDSEARCH.GLOBMIN = 0.0
-	CSEARCH.GLOBMIN = 0.0
+	OLDSEARCH.GLOBMIN = 999.9
+	CSEARCH.GLOBMIN = 999.9
 	CSEARCH.CPU = []
 	CSEARCH.ALLCPU = []
 	CSEARCH.TORVAL = []
@@ -88,9 +87,8 @@ if __name__ == "__main__":
 		if line.find("CONFORMER") > -1: 
 			if float(line.split()[3]) < OLDSEARCH.GLOBMIN: OLDSEARCH.GLOBMIN = float(line.split()[3])
 								
-	print CSEARCH.ENERGYRANGE
 	for line in conflines:
-		if line.find("CONFORMER") > -1: 
+		if line.find("CONFORMER") > -1:
 			if (float(line.split()[3])-OLDSEARCH.GLOBMIN)*2625.5 < CSEARCH.ENERGYRANGE:
 				OLDSEARCH.NAME.append(line.split()[2])
 				OLDSEARCH.ENERGY.append(float(line.split()[3]))

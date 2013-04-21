@@ -105,12 +105,12 @@ if __name__ == "__main__":
 ###############################################################	
 	
 # Solvation with CPCM #########################################
-if JOB.PROGRAM == "Gaussian" and interactivemode == 1:
-	var = raw_input("\no  Use CPCM solvation ? (Y/N) ")
-	if var.lower() == "y" or var.lower() == "":
-		EPS = raw_input("\n   Enter solvent name (default=diethylether) ")
-		if EPS == "": EPS = "(cpcm,solvent=diethylether)"
-		JOB.JOBTYPE = JOB.JOBTYPE+" scrf"+EPS; log.Write("   CPCM solvation correction on ... ")
+	if JOB.PROGRAM == "Gaussian" and interactivemode == 1:
+		var = raw_input("\no  Use CPCM solvation ? (Y/N) ")
+		if var.lower() == "y" or var.lower() == "":
+			EPS = raw_input("\n   Enter solvent name (default=diethylether) ")
+			if EPS == "": EPS = "(cpcm,solvent=diethylether)"
+			JOB.JOBTYPE = JOB.JOBTYPE+" scrf"+EPS; log.Write("   CPCM solvation correction on ... ")
 ###############################################################
 
 # Solvation with COSMO ########################################
@@ -131,10 +131,11 @@ if JOB.PROGRAM == "Gaussian" and interactivemode == 1:
 				else: log.Write("   No MM correction ... ") 
 				break
 ###############################################################				
-		
+	
 # Check for any constraints specified #########################
 	if hasattr(MOLSPEC, "CONSTRAINED"):
 		JOB.CONSTRAINED = MOLSPEC.CONSTRAINED
+		print MOLSPEC.CONSTRAINED
 		for const in MOLSPEC.CONSTRAINED: 
 			if len(const) == 1: log.Write("\no  The Cartesian position of "+str(const[0]+1)+" will be constrained ...")
 			if len(const) == 2: log.Write("\no  The distance "+str(const[0]+1)+"-"+str(const[1]+1)+" will be constrained ...")
