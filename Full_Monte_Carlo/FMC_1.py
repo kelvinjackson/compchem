@@ -142,8 +142,8 @@ if __name__ == "__main__":
 			if len(const) == 3: log.Write("\no  The angle "+str(const[0]+1)+"-"+str(const[1]+1)+"-"+str(const[2]+1)+" will be constrained ...")
 			if len(const) == 4: log.Write("\no  The dihedral "+str(const[0]+1)+"-"+str(const[1]+1)+"-"+str(const[2]+1)+"-"+str(const[3]+1)+" will be constrained ...")
 		if JOB.PROGRAM == "Gaussian":
-			if len(MOLSPEC.CONSTRAINED)!=0: JOB.JOBTYPE = "opt(modredundant,loose) "+JOB.JOBTYPE
-			else: JOB.JOBTYPE = "opt(loose) "+JOB.JOBTYPE
+			if len(MOLSPEC.CONSTRAINED)!=0: JOB.JOBTYPE = "opt(small,modredundant,loose) "+JOB.JOBTYPE
+			else: JOB.JOBTYPE = "opt(small,loose) "+JOB.JOBTYPE
 ###############################################################
 
 if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = "# geom=connectivity "+JOB.JOBTYPE

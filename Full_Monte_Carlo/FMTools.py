@@ -849,31 +849,37 @@ class AddConformer:
 class RemoveConformer:
 	def __init__(self, CSEARCH, todel):
 		j=0
-		#print todel
+		for i in range(0,len(CSEARCH.NAME)): print CSEARCH.NAME[i], CSEARCH.ENERGY[i]
+		print todel, len(todel), 
+		cutoff = (len(CSEARCH.NAME)-len(todel))
+		print cutoff
 		#print len(CSEARCH.NAME)-len(todel)
 		newtodel=[]
 		for i in range(len(todel)-1, -1, -1): newtodel.append(todel[i])
 		#print newtodel
 		#print len(CSEARCH.NAME), CSEARCH.NAME
-		#print CSEARCH.NAME[todel[0]:]
-		#print CSEARCH.NAME[:todel[0]]
+		print CSEARCH.NAME[cutoff:]
+		print CSEARCH.NAME[:cutoff]
 
 		for i in range(0,len(todel)):
 			#print i, todel[i], CSEARCH.TIMESFOUND[todel[i]]
 			CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[todel[i]]
 
-		del CSEARCH.NAME[todel[0]:]
+		del CSEARCH.NAME[cutoff:]
 		#print len(CSEARCH.NAME), CSEARCH.NAME
-		del CSEARCH.ENERGY[todel[0]:]
+		del CSEARCH.ENERGY[cutoff:]
 		#print len(CSEARCH.ENERGY), CSEARCH.ENERGY
-		del CSEARCH.CARTESIANS[todel[0]:]
-		del CSEARCH.CONNECTIVITY[todel[0]:]
-		del CSEARCH.USED[todel[0]:]
-		del CSEARCH.CPU[todel[0]:]
-		del CSEARCH.TIMESFOUND[todel[0]:]
-		del CSEARCH.TORVAL[todel[0]:]
+		del CSEARCH.CARTESIANS[cutoff:]
+		del CSEARCH.CONNECTIVITY[cutoff:]
+		del CSEARCH.USED[cutoff:]
+		del CSEARCH.CPU[cutoff:]
+		del CSEARCH.TIMESFOUND[cutoff:]
+		del CSEARCH.TORVAL[cutoff:]
+		print "AFTER REMOVAL"
+		for i in range(0,len(CSEARCH.NAME)): print CSEARCH.NAME[i], CSEARCH.ENERGY[i]
+	
 		#print len(CSEARCH.CONNECTIVITY),len(CSEARCH.USED), len(CSEARCH.CPU), len(CSEARCH.TIMESFOUND), len(CSEARCH.TORVAL)
-		CSEARCH.NSAVED = CSEARCH.NSAVED - len(todel)
+		CSEARCH.NSAVED = len(CSEARCH.NAME)
 		
 
 class CleanAfterJob:	
