@@ -521,6 +521,6 @@ if __name__ == "__main__":
 		if hasattr(fileData, "GIBBS"): print fileData.GIBBS,
 		else: print "N/A", 
 		if hasattr(fileData, "SOLVENERGY"): print fileData.SOLVENERGY,
-		else: print "N/A", 
+		#else: print "N/A", 
 		if hasattr(fileData, "S2"): print fileData.S2,
                 print ""
