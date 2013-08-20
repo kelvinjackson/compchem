@@ -78,7 +78,7 @@ class JobSpec:
 			self.ARGS = "&"
 		if software == "Gaussian":
 			self.EXEC = G09_EXEC
-			self.INPUT = ".com"
+			self.INPUT = " "
 			self.ARGS = " "
 	
 ###############################################################
@@ -527,7 +527,11 @@ def howmanyMol(bondmatrix,startatom):
 		for j in range(0,len(currentatom)):
 			for atom in currentatom[j]:
 				if atom==i:
-					molecule1.append(atom)
+					same = 0
+					for alreadyfound in molecule1:
+						if atom == alreadyfound: same = same + 1
+					if same ==0: molecule1.append(atom)
+
 	
 	return molecule1
 	#Repeat for all starting atoms. How may different molecules are there?
@@ -549,6 +553,9 @@ class Assign_Variables:
 		
 		
 		# Find rotatable bonds
+		self.ETOZ = []
+		if len(Params.ETOZ) > 0:
+			self.ETOZ.append([int(Params.ETOZ[0].split()[0]), int(Params.ETOZ[0].split()[1])])
 		self.TORSION = []
 		for i in range(0, MolSpec.NATOMS): 
 			for partner in MolSpec.CONNECTIVITY[i]:
@@ -885,7 +892,7 @@ class RemoveConformer:
 class CleanAfterJob:	
 	def __init__(self, Job, Confspec, samecheck, toohigh, isomerize):					
 		try:
-			for suffix in [".com", ".mop", ".arc", ".temp", ".end", ".chk", ".joblog", ".errlog"]: 
+			for suffix in [".com", ".mop", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
 				if os.path.exists(Confspec.NAME+suffix): os.remove(Confspec.NAME+suffix)
 
 			# If discarded remove the outfile as well		
@@ -1079,7 +1086,11 @@ class Writeintro:
 		# print "|  ",("MCRI: There are "+str(MCRI)+" rotatable ring bonds").ljust(leftcol),("|").rjust(rightcol); print "|  ",ringstring.ljust(leftcol),("|").rjust(rightcol),"\n",emptyline
 		if Variables.NMOLS > 1:
 			log.Write("   | o  "+("Detected "+str(Variables.NMOLS)+" separate molecules - this adds additional search coordinates").ljust(leftcol)+("|").rjust(rightcol));
-			for i in range(0,len(molarray)): log.Write("   |  "+molarray[i].ljust(leftcol)+("|").rjust(rightcol-1))
+			for i in range(0,len(molarray)): 
+				chunks, chunk_size = len(molarray[i]), leftcol
+				for j in range(0, chunks, chunk_size):
+					log.Write("   |    "+(molarray[i][j:j+chunk_size]).ljust(leftcol)+("|").rjust(rightcol))
+				#log.Write("   |  "+molarray[i].ljust(leftcol)+("|").rjust(rightcol-1))
 		log.Write("   | o  "+("LEVL: "+str(Params.LEVL)+" model chemistry").ljust(leftcol)+("|").rjust(rightcol))
 		if Params.CSEARCH == "MCMM":
 			log.Write("   | o  "+("DEMX: "+str(Params.DEMX)+" kJ/mol").ljust(leftcol)+("|").rjust(rightcol))
@@ -1414,7 +1425,7 @@ class getParams:
 		#Default Parameters
 		self.CSEARCH = "MCMM"
 		self.MCSS="Uniform Usage Directed"
-		self.ITVL=30
+		self.ITVL=60
 		self.EWIN=20.0
 		self.COMP=10.0
 		self.DEMX=41.84
@@ -1422,6 +1433,7 @@ class getParams:
 		self.POOL=1
 		self.FIXT=[]
 		self.EQUI=[]
+		self.ETOZ=[]
 		self.HSWAP=0
 		self.STEP=0
 		self.LEVL="PM6"
@@ -1447,6 +1459,7 @@ class getParams:
 				if line.find("EWIN") > -1: self.EWIN = float(line.split("=")[1].rstrip('\n').lstrip())
 				if line.find("DEMX") > -1: self.DEMX = float(line.split("=")[1].rstrip('\n').lstrip())
 				if 	line.find("FIXT") > -1: self.FIXT.append((line.split("=")[1]).rstrip('\n').lstrip())
+				if      line.find("ETOZ") > -1: self.ETOZ.append((line.split("=")[1]).rstrip('\n').lstrip())
 				if 	line.find("EQUI") > -1: self.EQUI.append((line.split("=")[1]).rstrip('\n').lstrip())
 				if 	line.find("HSWP") > -1: self.HSWAP = int((line.split("=")[1]).rstrip('\n').lstrip())
 		
@@ -1624,8 +1637,9 @@ class writeInput:
 			fileout.write("%chk="+MolSpec.NAME+".chk\n")
 			
 			if hasattr(JobSpec, "Mem"): fileout.write("%mem = "+JobSpec.Mem+"\n")
-			if hasattr(JobSpec, "Nproc"): fileout.write("%nproc = "+JobSpec.Nproc+"\n")
-			
+			if hasattr(JobSpec, "NPROC"): 
+				fileout.write("%nproc = "+str(JobSpec.NPROC)+"\n")
+	
 			for route in JobSpec.JOBTYPE.split(): fileout.write(route+" ")
 			fileout.write("\n\n")
 			fileout.write(MolSpec.NAME+"\n\n")

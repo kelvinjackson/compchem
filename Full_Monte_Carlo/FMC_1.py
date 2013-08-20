@@ -33,7 +33,7 @@
 
  
 # Python Libraries ############################################
-import subprocess, sys, os, random, math, tarfile
+import glob, subprocess, sys, os, random, math, tarfile
 ###############################################################
 
 # Full Monte Libaries #########################################
@@ -74,6 +74,15 @@ if __name__ == "__main__":
 		var = raw_input("\no  Tarfile already exists! OK to overwrite these structures ? (Y/N) ")
 		if var.lower() == "y" or var.lower() == "": os.remove(filein+"_fm.tgz")
 		else: print "\nExiting\n";  sys.exit(1)
+        if len(glob.glob(filein+"*step*"))>0:
+		if interactivemode == 1:
+                	print glob.glob(filein+"*step*")
+			var = raw_input("\no  Some optimization ouput files already exist! OK to overwrite these structures ? (Y/N) ")
+                	if var.lower() == "y" or var.lower() == "": 
+				for file in glob.glob(filein+"*step*"): os.remove(file)
+                	else: print "\nExiting\n";  sys.exit(1)
+		else:
+			for file in glob.glob(filein+"*step*"): os.remove(file)
 ###############################################################			
 
 # Open the structure file #####################################
@@ -89,7 +98,7 @@ if __name__ == "__main__":
 ###############################################################	
 		
 # Model Chemistry to be used ##################################
-	for level in ["AM1", "PM3", "PM6", "PM7"]:
+	for level in ["AM1", "PM3", "PM6", "PM7", "PM6-DH2"]:
 		if SEARCHPARAMS.LEVL.upper() == level: JOB = JobSpec("Mopac")
 	for level in ["UFF"]:
 		if SEARCHPARAMS.LEVL.upper() == level: JOB = JobSpec("Gaussian")
@@ -123,19 +132,22 @@ if __name__ == "__main__":
 ###############################################################
 
 # MM correction for N planarity? ##############################
-	if JOB.PROGRAM == "Mopac" and interactivemode == 1: 
+	if JOB.PROGRAM == "Mopac":
 		for atom in MOLSPEC.ATOMTYPES:
 			if atom == "N": 
-				var = raw_input("\no  Use molecular mechanics correction for planar nitrogen atoms ? (Y/N) ")
-				if var.lower() == "y" or var.lower() == "": JOB.JOBTYPE = JOB.JOBTYPE+" mmok"; log.Write("   MM correction on ... ") 
-				else: log.Write("   No MM correction ... ") 
-				break
+				if interactivemode == 1:
+					var = raw_input("\no  Use molecular mechanics correction for planar nitrogen atoms ? (Y/N) ")
+					if var.lower() == "y" or var.lower() == "": JOB.JOBTYPE = JOB.JOBTYPE+" mmok"; log.Write("   MM correction on ... ") 
+					else: log.Write("   No MM correction ... ") 
+					break
+				else:
+					JOB.JOBTYPE = JOB.JOBTYPE+" mmok"; log.Write("   MM correction on ... ")
 ###############################################################				
 	
 # Check for any constraints specified #########################
 	if hasattr(MOLSPEC, "CONSTRAINED"):
 		JOB.CONSTRAINED = MOLSPEC.CONSTRAINED
-		print MOLSPEC.CONSTRAINED
+		#print MOLSPEC.CONSTRAINED
 		for const in MOLSPEC.CONSTRAINED: 
 			if len(const) == 1: log.Write("\no  The Cartesian position of "+str(const[0]+1)+" will be constrained ...")
 			if len(const) == 2: log.Write("\no  The distance "+str(const[0]+1)+"-"+str(const[1]+1)+" will be constrained ...")
@@ -146,7 +158,9 @@ if __name__ == "__main__":
 			else: JOB.JOBTYPE = "opt(small,loose) "+JOB.JOBTYPE
 ###############################################################
 
-if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = "# geom=connectivity "+JOB.JOBTYPE
+if JOB.PROGRAM == "Gaussian": 
+	JOB.JOBTYPE = "# geom=connectivity "+JOB.JOBTYPE
+	JOB.NPROC = SEARCHPARAMS.POOL
 
 # Monte Carlo or Systematic (for comparison) ##################
 if interactivemode == 1:
@@ -202,6 +216,7 @@ CSEARCH.ALLCPU = [getoutData(MOLSPEC).CPU]
 CSEARCH.LASTFOUND = 0
 CSEARCH.CLASH = [0]
 
+print CSEARCH.STEP, SEARCHPARAMS.POOL, SEARCHPARAMS.STEP
 
 # Stop once number of steps exceeded or no new conformers found	
 while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
@@ -256,7 +271,14 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 					
 				if FMVAR.MCNV != 0:
 					FMVAR.ADJUST = []
-					for dihedral in random.sample(FMVAR.TORSION, nrandom): FMVAR.ADJUST.append([int(dihedral[0])+1, int(dihedral[1])+1, random.randint(0,360)])
+					for dihedral in random.sample(FMVAR.TORSION, nrandom): 
+						FMVAR.ADJUST.append([int(dihedral[0])+1, int(dihedral[1])+1, random.randint(0,360)])
+					
+					if len(FMVAR.ETOZ) > 0:
+						ezisomerize = random.choice([0,1])
+						for dihedral in random.sample(FMVAR.ETOZ,ezisomerize): 
+							#print "ETOZ",dihedral,ezisomerize
+							FMVAR.ADJUST.append([int(dihedral[0]), int(dihedral[1]), 180])
 				
 				#Torsions in Rings - Currently Not Supported
 				#if MCRI!=0:
@@ -266,7 +288,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				
 # Take input geometry and apply specified torsional changes
 				if hasattr(FMVAR, "ADJUST"):
-					#print FMVAR.ADJUST
+					print FMVAR.ADJUST
 					for torsion in FMVAR.ADJUST: CONFSPEC.CARTESIANS = AtomRot(MOLSPEC, torsion, CONFSPEC.CARTESIANS)
 				
 # For separate molecules, alter the distances and orientations between a random number of them

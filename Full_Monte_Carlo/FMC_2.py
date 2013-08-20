@@ -54,8 +54,10 @@ if __name__ == "__main__":
 	JOB = JobSpec("Gaussian")	
 	JOB.JOBTYPE = MOLSPEC.JOBTYPE
 	if hasattr(MOLSPEC, "MEMREQ"): JOB.Mem = str(MOLSPEC.MEMREQ)
-	if hasattr(MOLSPEC, "NPROC"): JOB.Nproc = str(MOLSPEC.NPROC)		
-
+	if hasattr(MOLSPEC, "NPROC"): 
+		print MOLSPEC.NPROC
+		JOB.NPROC = str(MOLSPEC.NPROC)		
+		
 	
 	# Read the Monte Carlo parameters (from the FullMonte outfile)
 	#log.Write("\no  Extracting conformational search parameters from "+filein+"_fm.out"+" ...")
@@ -135,7 +137,8 @@ if __name__ == "__main__":
 	# Now update tar to point to TS optimization files
 	tar = tarfile.open(qmtgz, "r:gz")
 	names = tar.getnames()
-	
+
+	print names	
 	for name in names: CSEARCH.TODO.append(name.split(".")[0])
 	CSEARCH.NJOBS = len(names)
 	
@@ -144,12 +147,14 @@ if __name__ == "__main__":
 	#asciiArt(start)
 
 	for todo in CSEARCH.TODO:
+		print todo
 		if os.path.isfile(todo+".log")==1 or os.path.isfile(todo+".out")==1 or os.path.isfile(todo+".chk")==1:
 			
-			if os.path.isfile(todo+".out")==1:
+			if os.path.isfile(todo+".log")==1:
+				print "here"
 				CONFSPEC.NAME = todo
 				if isJobFinished(JOB, CONFSPEC) > 0:
-					
+					print "here"
 					CSEARCH.DONE = CSEARCH.DONE + 1
 					CSEARCH.DONELIST.append(todo)
 						
