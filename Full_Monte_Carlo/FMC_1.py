@@ -88,6 +88,7 @@ if __name__ == "__main__":
 # Open the structure file #####################################
 	log.Write("\no  Extracting molecule from "+filein+"."+filetype+" ...")
 	MOLSPEC = getinData(filein,log)
+	print MOLSPEC.CHARGE, MOLSPEC.MULT
 ###############################################################	
 	
 # Open the specified parameter file for Monte Carlo parameters 
@@ -216,8 +217,6 @@ CSEARCH.ALLCPU = [getoutData(MOLSPEC).CPU]
 CSEARCH.LASTFOUND = 0
 CSEARCH.CLASH = [0]
 
-print CSEARCH.STEP, SEARCHPARAMS.POOL, SEARCHPARAMS.STEP
-
 # Stop once number of steps exceeded or no new conformers found	
 while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 	log.Write("o  STEP "+str(CSEARCH.STEP)+": Generating "+str(SEARCHPARAMS.POOL)+" structures ...")
@@ -266,6 +265,9 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 # The coordinates of the lowest energy, least used structure will be altered
 				CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[startgeom]
 				CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[startgeom]
+				CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
+				CONFSPEC.CHARGE = MOLSPEC.CHARGE
+				CONFSPEC.MULT = MOLSPEC.MULT
 				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
 				nrandom = random.randint(FMVAR.MCNVmin, FMVAR.MCNVmax)
 					
@@ -316,6 +318,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 # Successful termination - extract details
 			if isJobFinished(JOB, CONFSPEC) == 1:
 				CONFSPEC =  getoutData(CONFSPEC)
+				CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
 				CSEARCH.ALLCPU.append(CONFSPEC.CPU)
 				
 #Check whether the molecule has isomerized - usually this is undesirable so filter out structural isomers

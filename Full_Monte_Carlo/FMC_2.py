@@ -30,7 +30,7 @@ from FMTools import *
 if __name__ == "__main__":
 
 	# A FullMonte output file is required
-	if len(sys.argv)==4: 
+	if len(sys.argv)>=4: 
 		filein = sys.argv[1].split("_fm.")[0]
 		comfile = sys.argv[2].split(".")[0]
 		# Energy range for submitting QM jobs (kJ/mol)
@@ -44,7 +44,8 @@ if __name__ == "__main__":
 	log = FMLog(filein, "log", "qm")
 	qmtgz = filein+"_qm.tgz"
 	qmsuffix = "dft"	
-
+	if len(sys.argv)==5: qmsuffix = sys.argv[4]
+	
 	# Open the specified Gaussian structure file 
 	log.Write("\no  Extracting molecule data from "+comfile+".com ...")
 	MOLSPEC = getinData(comfile, log)
@@ -55,7 +56,6 @@ if __name__ == "__main__":
 	JOB.JOBTYPE = MOLSPEC.JOBTYPE
 	if hasattr(MOLSPEC, "MEMREQ"): JOB.Mem = str(MOLSPEC.MEMREQ)
 	if hasattr(MOLSPEC, "NPROC"): 
-		print MOLSPEC.NPROC
 		JOB.NPROC = str(MOLSPEC.NPROC)		
 		
 	
@@ -126,7 +126,6 @@ if __name__ == "__main__":
 		
 			# Write new input file for QM optimization
 			writeInput(JOB, MOLSPEC)
-			print MOLSPEC.NAME
 			comtar.add(MOLSPEC.NAME+".com")	
 			os.remove(MOLSPEC.NAME+".com")
 			
@@ -138,7 +137,6 @@ if __name__ == "__main__":
 	tar = tarfile.open(qmtgz, "r:gz")
 	names = tar.getnames()
 
-	print names	
 	for name in names: CSEARCH.TODO.append(name.split(".")[0])
 	CSEARCH.NJOBS = len(names)
 	
@@ -147,14 +145,11 @@ if __name__ == "__main__":
 	#asciiArt(start)
 
 	for todo in CSEARCH.TODO:
-		print todo
 		if os.path.isfile(todo+".log")==1 or os.path.isfile(todo+".out")==1 or os.path.isfile(todo+".chk")==1:
 			
-			if os.path.isfile(todo+".log")==1:
-				print "here"
+			if os.path.isfile(todo+".log")==1 or os.path.isfile(todo+".out")==1:
 				CONFSPEC.NAME = todo
 				if isJobFinished(JOB, CONFSPEC) > 0:
-					print "here"
 					CSEARCH.DONE = CSEARCH.DONE + 1
 					CSEARCH.DONELIST.append(todo)
 						
@@ -215,8 +210,16 @@ if __name__ == "__main__":
 				concheck = checkconn(CONFSPEC, MOLSPEC, OLDSEARCH, SEARCHPARAMS)
 				if concheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
 				else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: "+concheck[1]+concheck[2]+" has broken from "+concheck[3]+concheck[4]).ljust(50))
-				
-												
+			
+				#If it is a TS, check the forming/breaking bond of interest
+				if len(MOLSPEC.CONSTRAINED) > 0:
+					const0 = calcdist(MOLSPEC.CONSTRAINED[0][0],MOLSPEC.CONSTRAINED[1][0],MOLSPEC.CARTESIANS)
+					const1 = calcdist(MOLSPEC.CONSTRAINED[0][0],MOLSPEC.CONSTRAINED[1][0],CONFSPEC.CARTESIANS)				
+					#print const0, const1, const1-const0
+					if math.fabs(const1 - const0) > 0.3: 
+						isomerize = 1	
+						log.Write("   "+(CONFSPEC.NAME+" is rejected: "+str(MOLSPEC.CONSTRAINED[0][0])+" has broken/formed with "+str(MOLSPEC.CONSTRAINED[1][0])).ljust(50))
+					
 				# Check for high energy
 				if ((CONFSPEC.ENERGY - CSEARCH.GLOBMIN)*2625.5) < SEARCHPARAMS.DEMX: toohigh = 0
 				else: toohigh = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected due to high energy ... ").ljust(50))
@@ -239,7 +242,7 @@ if __name__ == "__main__":
 					for j in range(0, CSEARCH.NSAVED):
 						if (CONFSPEC.ENERGY-CSEARCH.GLOBMIN)*2625.5 < esame*-1.0: break
 						if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < 0.5:
-                                                        print "   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
+                                                        #print "   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
 							if checkSame(CONFSPEC, CSEARCH, SEARCHPARAMS, j) > 0 or checkSame(makemirror(CONFSPEC), CSEARCH, SEARCHPARAMS, j) > 0:
 								log.Write("   "+(CONFSPEC.NAME+" is a duplicate of conformer "+CSEARCH.NAME[j]+" ... ").ljust(50))
 								CSEARCH.TIMESFOUND[j] = CSEARCH.TIMESFOUND[j] + 1
@@ -279,7 +282,7 @@ if __name__ == "__main__":
 		CSEARCH.GLOBMIN = CSEARCH.ENERGY[0]
 	
 		# Final Summary of Full Monte search
-		WriteQMSummary(CSEARCH, OLDSEARCH, SEARCHPARAMS, start, log)	
+		WriteQMSummary(CSEARCH, OLDSEARCH, SEARCHPARAMS, start, log, qmsuffix)	
 	
 		makeGVformat(filein, MOLSPEC, CSEARCH, SEARCHPARAMS, "qm")
 		makePDBformat(filein, MOLSPEC, CSEARCH, "qm")

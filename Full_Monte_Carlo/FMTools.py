@@ -116,7 +116,10 @@ def isJobFinished(JobSpec, MolSpec):
 				outfile.close()
 
 	if JobSpec.PROGRAM == "Gaussian":
-		outfile = open(MolSpec.NAME+".log","r")
+		if os.path.exists(MolSpec.NAME+".out"):
+                        outfile = open(MolSpec.NAME+".out","r")
+                if os.path.exists(MolSpec.NAME+".log"):
+                        outfile = open(MolSpec.NAME+".log","r");
 		jobdone=0; normal=0
 		for line in outfile.readlines():
 			if line.find("Normal termination") > -1:
@@ -128,8 +131,9 @@ def isJobFinished(JobSpec, MolSpec):
 	if jobdone>0 and normal==0: return 2
 	else:
 		if JobSpec.PROGRAM == "Mopac": modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".out")
-		if JobSpec.PROGRAM == "Gaussian": modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".log")
-
+		if JobSpec.PROGRAM == "Gaussian": 
+			if os.path.exists(MolSpec.NAME+".log"):modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".log")
+			if os.path.exists(MolSpec.NAME+".out"):modtime=commands.getoutput("ls -l -t "+MolSpec.NAME+".out")
 		#print modtime
 		for mod in modtime.split(): 
 			if mod.find(":") > -1: timeofday = mod		
@@ -270,10 +274,10 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 		torval1=getTorsion(ConfSpec)
 		#print ConfSpec.NAME
 		#print ConfSpec.CARTESIANS
-		#print torval1
+		print torval1
 		#print CSearch.NAME[savedconf]
 		#print CSearch.CARTESIANS[savedconf]
-		#print CSearch.TORVAL[savedconf]
+		print CSearch.TORVAL[savedconf]
 		for x in range(0,len(torval1)):
 			difftor=math.sqrt((torval1[x]-CSearch.TORVAL[savedconf][x])*(torval1[x]-CSearch.TORVAL[savedconf][x]))
 			if difftor>180.0:
@@ -470,6 +474,8 @@ def checkconn(ConfSpec, MolSpec, CSearch, SearchParams):
 	
 # Returns a matrix of dihedral angles (with sign) given connecitivty and coordinates in numerical order. Only between heavy atoms and NH,OH and SH protons
 def getTorsion(MolSpec):
+	print "ATOMTYPES"
+	print MolSpec.ATOMTYPES
 	torval=[]
 	for atoma in range(0,len(MolSpec.CARTESIANS)): 
 		for partner1 in MolSpec.CONNECTIVITY[atoma]:
@@ -496,6 +502,7 @@ def getTorsion(MolSpec):
 									torval.append(torsion)
 	return torval
 	
+
  
 # Find how many separate molecules there are
 def howmanyMol(bondmatrix,startatom):
@@ -892,7 +899,7 @@ class RemoveConformer:
 class CleanAfterJob:	
 	def __init__(self, Job, Confspec, samecheck, toohigh, isomerize):					
 		try:
-			for suffix in [".com", ".mop", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
+			for suffix in [".com", ".mop", ".aux", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
 				if os.path.exists(Confspec.NAME+suffix): os.remove(Confspec.NAME+suffix)
 
 			# If discarded remove the outfile as well		
@@ -1140,12 +1147,11 @@ class WriteSummary:
 class WriteQMSummary:
 	
 	# Formatted text printed to terminal and log file at the end of each search step
-	def __init__(self, CSearch, OldSearch, SearchParams, start, log):
+	def __init__(self, CSearch, OldSearch, SearchParams, start, log, qmsuffix):
 		
 		now = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())
 		runningtime = RealTime(start, now)
 		totalCPU = CPUTime(CSearch)
-		qmsuffix="dft"
 		
 		if CSearch.COMPLETE == 0: log.Write("\no  "+(str(CSearch.DONE)+" QM JOBS COMPLETED: "+str(CSearch.NSAVED)+" unique conformations. Global minimum energy = "+str(round(CSearch.GLOBMIN,5))).ljust(leftcol)+("").rjust(rightcol))
 		if CSearch.COMPLETE == 1: log.Write("\no  "+("FULL MONTE SEARCH COMPLETE: "+str(CSearch.NSAVED)+" unique conformations. Global minimum energy = "+str(round(CSearch.GLOBMIN,5))).ljust(leftcol)+("").rjust(rightcol))
@@ -1161,8 +1167,9 @@ class WriteQMSummary:
 				if (OldSearch.NAME[j]+"_"+qmsuffix).find(CSearch.NAME[i]) > -1:
 					olderel = str(round(float((OldSearch.ENERGY[j]-OldSearch.GLOBMIN)*2625.5),2))
 			
-			log.Write("   | "+CSearch.NAME[i].ljust(50)+(absenergy).ljust(10)+(relenergy).rjust(10)+ (str(CSearch.TIMESFOUND[i])).rjust(10)+(str(CSearch.CPU[i][0])+"d "+str(CSearch.CPU[i][1])+"h "+str(CSearch.CPU[i][2])+"m "+str(CSearch.CPU[i][3])+"s").rjust(20)+olderel.rjust(10)+("|").rjust(2))
-		log.Write(dashedline+"\n   | o  "+("CPU time: "+str(totalCPU[0])+"d "+str(totalCPU[1])+"h "+str(totalCPU[2])+"m "+str(totalCPU[3])+"s   Execute time: "+str(runningtime[0])+"d "+str(runningtime[1])+"h "+str(runningtime[2])+"m "+str(runningtime[3])+"s").ljust(leftcol)+("|").rjust(rightcol))
+			log.Write("   | "+CSearch.NAME[i].ljust(50)+(absenergy).ljust(10)+(relenergy).rjust(10)+ (str(CSearch.TIMESFOUND[i])).rjust(10)+(str(CSearch.CPU[i][0])+"d "+str(CSearch.CPU[i][1])+"h "+str(CSearch.CPU[i][2])+"m "+str(CSearch.CPU[i][3])+"s").rjust(20)+olderel.rjust(10)+("|").rjust(1))
+		log.Write(dashedline)
+		log.Write("   | o  "+("CPU time: "+str(totalCPU[0])+"d "+str(totalCPU[1])+"h "+str(totalCPU[2])+"m "+str(totalCPU[3])+"s   Execute time: "+str(runningtime[0])+"d "+str(runningtime[1])+"h "+str(runningtime[2])+"m "+str(runningtime[3])+"s").ljust(leftcol)+("|").rjust(rightcol))
 		log.Write(dashedline)
 
 
@@ -1521,15 +1528,17 @@ class getoutData:
 			self.CARTESIANS = []
 			if format == "Mopac":
 				for i in range(0,len(outlines)):
-					if outlines[i].find("CHEMICAL") > -1: standor = i+3
-					if outlines[i].find("Empirical Formula") > -1:
-						self.NATOMS = int((outlines[i].split("="))[1].split()[0])
-				
+					if outlines[i].find("ATOM_X_OPT") > -1: standor = i+1
+					if outlines[i].find("ATOM_CHARGES") > -1:
+						self.NATOMS = i - standor
+			
+				print self.NATOMS	
 				if hasattr(self, "NATOMS"):
 					for i in range (standor,standor+self.NATOMS):
-						outlines[i] = outlines[i].replace("*", " ")
-						self.ATOMTYPES.append((outlines[i].split()[1]))
-						self.CARTESIANS.append([float(outlines[i].split()[2]), float(outlines[i].split()[3]), float(outlines[i].split()[4])])
+						#outlines[i] = outlines[i].replace("*", " ")
+						print outlines[i].split()
+						#self.ATOMTYPES.append((outlines[i].split()[1]))
+						self.CARTESIANS.append([float(outlines[i].split()[0]), float(outlines[i].split()[1]), float(outlines[i].split()[2])])
 			
 			if format == "Gaussian":
 				for i in range(0,len(outlines)):
@@ -1563,8 +1572,8 @@ class getoutData:
 			days = 0; hours = 0; mins = 0; secs = 0
 			if format == "Mopac":
 				for i in range(0,len(outlines)):
-					if outlines[i].find("TOTAL CPU TIME") > -1:
-						secs = secs + int(float(outlines[i].split()[3]))
+					if outlines[i].find("CPU_TIME") > -1:
+						secs = secs + int(float(outlines[i].split("=")[1].replace("D","E")))
 			if format == "Gaussian":
 				for i in range(0,len(outlines)):
 					if outlines[i].find("Job cpu time") > -1:
@@ -1579,8 +1588,9 @@ class getoutData:
 		def getENERGY(self, outlines, format):
 			if format == "Mopac":
 				for i in range(0,len(outlines)):
-					if outlines[i].find("TOTAL ENERGY") > -1:
-						self.ENERGY = 0.036749309*(float(outlines[i].split()[3]))
+					if outlines[i].find("TOTAL_ENERGY") > -1:
+						#print float(outlines[i].split("=")[1].replace("D","E"))
+						self.ENERGY = 0.036749309*float(outlines[i].split("=")[1].replace("D","E"))
 			if format == "Gaussian":
 				uff = 0
 				am1 = 0
@@ -1616,11 +1626,14 @@ class getoutData:
 		if os.path.exists(self.NAME+".log"):
 			outfile = open(self.NAME+".log","r");
 			outlines = outfile.readlines()
+		if os.path.exists(self.NAME+".aux"):
+                        outfile = open(self.NAME+".aux","r");
+                        outlines = outfile.readlines()
 
 		
 		getFORMAT(self, outlines)
 		if hasattr(self, "FORMAT"):
-			getCHARGE(self, outlines, self.FORMAT)
+			#getCHARGE(self, outlines, self.FORMAT)
 			getENERGY(self, outlines, self.FORMAT)
 			getATOMTYPES(self, outlines, self.FORMAT)
 			getFREQS(self, outlines, self.FORMAT)
@@ -1696,7 +1709,7 @@ class writeInput:
 			#print "writing MOPAC"
 			fileout = open(MolSpec.NAME+".mop", "w")
 			fileout.write(JobSpec.JOBTYPE+" charge="+str(MolSpec.CHARGE))
-			
+			fileout.write(" aux")	
 			if MolSpec.MULT == 1: fileout.write(" Singlet ")
 			elif MolSpec.MULT == 2: fileout.write(" Doublet ")
 			elif MolSpec.MULT == 3: fileout.write(" Triplet ")
@@ -1798,7 +1811,10 @@ def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
                 CONFSPEC.NAME = CSEARCH.NAME[i+k]
                 CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i+k]
                 CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
+                CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
+                CONFSPEC.CHARGE = MOLSPEC.CHARGE
                 CONFSPEC.MULT = MOLSPEC.MULT
+		CONFSPEC.MULT = MOLSPEC.MULT
                 CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
                 writeInput(JOB, CONFSPEC)
                 submitJob(JOB, CONFSPEC, log)
@@ -1815,6 +1831,7 @@ def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
                     #log.Write("   Extracting optimized structure from "+CONFSPEC.NAME+".out ...")
                     CONFSPEC =  getoutData(CONFSPEC)
                     CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
+		    CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
                     CSEARCH.ENERGY[i+k] = CONFSPEC.ENERGY
                     CSEARCH.CARTESIANS[i+k] = CONFSPEC.CARTESIANS
                     CSEARCH.CPU[i+k] = CONFSPEC.CPU

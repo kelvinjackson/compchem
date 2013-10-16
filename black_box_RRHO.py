@@ -117,6 +117,13 @@ def calc_translational_entropy(molecular_mass, conc, temperature):
 	simass = molecular_mass*AMU_to_KG
 	lmda = ((2.0*math.pi*simass*BOLTZMANN_CONSTANT*temperature)**0.5)/PLANCK_CONSTANT
 	Ndens = conc*1000*AVOGADRO_CONSTANT
+	#Convert molar volume to free volume due to solvent molecule size
+	#e.g. chloroform Vol free is 7.5mL
+	#e.g. DMF molarity is 12.9 and 77.442 Ang^3 molar volume, so Vfree = 8(10^27/12.9*Na - 
+	#4.26)^3 = 3.94 Ang^3 per molecule = 30.6 mL per L 
+	# M.H. Abraham, J. Liszi, J. Chem. Soc. Faraday Trans. 74 (1978) 1604.
+	
+	Ndens = Ndens / (30.6/1000.0)
 	entropy = GAS_CONSTANT*(2.5+math.log(lmda**3/Ndens))/4.184
 	
 	return entropy
