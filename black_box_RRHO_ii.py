@@ -134,7 +134,7 @@ def calc_translational_entropy(molecular_mass, conc, temperature):
 
 
 # rotational entropy evaluation (depends on molecular shape and temp.)
-def calc_rotational_entropy(zpe, symmno, rotemp, temperature):
+def calc_rotational_entropy(zpe, symmno, roconst, temperature):
 	"""
 		Calculates the rotational entropy (cal/(mol*K))
 		Strans = 0 (atomic) ; R(Ln(q)+1) (linear); R(Ln(q)+3/2) (non-linear)
@@ -143,6 +143,7 @@ def calc_rotational_entropy(zpe, symmno, rotemp, temperature):
 
 	#rotemp = [PLANCK_CONSTANT**2/(8*math.pi**2*BOLTZMANN_CONSTANT*entry*AMU_to_KG*1E-20) for entry in moment_of_inertia]
 	#print rotemp
+	rotemp = [roconst[0]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT,roconst[1]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT,roconst[2]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT]
 	qrot = math.pi*temperature**3/(rotemp[0]*rotemp[1]*rotemp[2])
 	qrot = qrot ** 0.5
 	qrot = qrot/symmno
@@ -233,7 +234,7 @@ class calc_bbe:
 			if line.strip().startswith('Thermal correction to Gibbs Free Energy='): gibbs_corr = float(line.strip().split()[6])
 			if line.strip().startswith('Molecular mass:'): molecular_mass = float(line.strip().split()[2])
 			if line.strip().startswith('Rotational symmetry number'): symmno = int((line.strip().split()[3]).split(".")[0])
-			if line.strip().startswith('Rotational temperatures'): rotemp = [float(line.strip().split()[3]), float(line.strip().split()[4]), float(line.strip().split()[5])]
+			if line.strip().startswith('Rotational constants'): roconst = [float(line.strip().split()[3]), float(line.strip().split()[4]), float(line.strip().split()[5])]
 		 
 				
 		# Calculate Translational, Rotational and Vibrational contributions to the energy
@@ -247,7 +248,7 @@ class calc_bbe:
 		Strans = calc_translational_entropy(molecular_mass, conc, temperature)
 		conc_correction = Strans - Strans1atm
 			
-		Srot = calc_rotational_entropy(self.zero_point_corr, symmno, rotemp, temperature)
+		Srot = calc_rotational_entropy(self.zero_point_corr, symmno, roconst, temperature)
 				
 		# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
 		Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)

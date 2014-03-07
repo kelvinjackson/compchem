@@ -328,16 +328,17 @@ class calcD3:
 			for k in range(j+1,natom):
 				scalefactor=1.0
 				vdw=0
+				
 				if hasattr(fileData,"BONDINDEX"):
-					if fileData.BONDINDEX[j][k]==1: vdw=0
+					if fileData.BONDINDEX[j][k]==1: vdw=0; scalefactor = 0
 					for l in range (0,natom):
-						if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[k][l]!=0 and j!=k and fileData.BONDINDEX[j][k]==0: vdw=0
+						if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[k][l]!=0 and j!=k and fileData.BONDINDEX[j][k]==0: vdw=0; scalefactor = 0
 						for m in range (0,natom):
-							if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[l][m]!=0 and fileData.BONDINDEX[k][m]!=0 and j!=m and k!=l and fileData.BONDINDEX[j][m]==0: scalefactor=0.0
+							if fileData.BONDINDEX[j][l] != 0 and fileData.BONDINDEX[l][m]!=0 and fileData.BONDINDEX[k][m]!=0 and j!=m and k!=l and fileData.BONDINDEX[j][m]==0: scalefactor=1/1.2
 				
 				
 				if k>j:
-					#print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ",
+					print "  ", (j+1), (k+1),"  ", atomtype[j], atomtype[k],"  ", scalefactor
 					
 					## Pythagoras in 3D to work out distance ##
 					xdist = xco[j]-xco[k]
