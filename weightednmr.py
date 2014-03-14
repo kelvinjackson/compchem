@@ -43,7 +43,6 @@ if chemshiftatom2 != "":
 
 
 class getoutData:
-
         def __init__(self, file):
 
                 if not os.path.exists(file+".out"):

@@ -32,6 +32,7 @@
 
 # Python Libraries ############################################
 import subprocess, sys, os, commands, math, time, tarfile, random
+from numpy import matrix
 ###############################################################
 	
 # EXECECTUBALE ################################################
@@ -274,10 +275,10 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 		torval1=getTorsion(ConfSpec)
 		#print ConfSpec.NAME
 		#print ConfSpec.CARTESIANS
-		print torval1
+		#print torval1
 		#print CSearch.NAME[savedconf]
 		#print CSearch.CARTESIANS[savedconf]
-		print CSearch.TORVAL[savedconf]
+		#print CSearch.TORVAL[savedconf]
 		for x in range(0,len(torval1)):
 			difftor=math.sqrt((torval1[x]-CSearch.TORVAL[savedconf][x])*(torval1[x]-CSearch.TORVAL[savedconf][x]))
 			if difftor>180.0:
@@ -474,8 +475,8 @@ def checkconn(ConfSpec, MolSpec, CSearch, SearchParams):
 	
 # Returns a matrix of dihedral angles (with sign) given connecitivty and coordinates in numerical order. Only between heavy atoms and NH,OH and SH protons
 def getTorsion(MolSpec):
-	print "ATOMTYPES"
-	print MolSpec.ATOMTYPES
+	#print "ATOMTYPES"
+	#print MolSpec.ATOMTYPES
 	torval=[]
 	for atoma in range(0,len(MolSpec.CARTESIANS)): 
 		for partner1 in MolSpec.CONNECTIVITY[atoma]:
@@ -503,7 +504,87 @@ def getTorsion(MolSpec):
 	return torval
 	
 
- 
+def find_centroid(ringatoms,fileData):
+	xtot = 0; xvals=[]; yvals=[]; zvals=[]
+	ringsize = len(ringatoms)
+	#print "Ring Size =",ringsize
+	for x in ringatoms:
+		#print fileData.CARTESIANS[x]
+		xtot = xtot + fileData.CARTESIANS[x][0]
+		xvals.append(fileData.CARTESIANS[x][0])
+	xav = xtot/ringsize
+	ytot = 0
+	for x in ringatoms:
+		ytot = ytot + fileData.CARTESIANS[x][1]
+		yvals.append(fileData.CARTESIANS[x][1])
+	yav = ytot/ringsize
+	ztot = 0
+	for x in ringatoms:
+		ztot = ztot + fileData.CARTESIANS[x][2]
+		zvals.append(fileData.CARTESIANS[x][2])
+	zav = ztot/ringsize
+	
+	#print "Centroid at:", xav, yav, zav  #gives position of centroid
+	return xvals, yvals, zvals, xav, yav, zav
+
+
+def find_coeffplane(ringatoms, fileData):
+	rotated = 0
+	xvals, yvals, zvals, xav, yav, zav = find_centroid(ringatoms, fileData)
+	#print xvals, yvals, zvals
+	xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum = get_squares_list(ringatoms, xvals, yvals, zvals)
+	if xsum == 0.0 and ysum == 0.0:
+		rotated = 3
+		print "Can't define a ring by points in a line"
+		print "This is going to go horribly wrong"
+	if xsum == 0.0:
+		new_xvals = yvals
+		new_yvals = zvals
+		new_zvals = xvals
+		xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum = get_squares_list(ringatoms, xvals, yvals, zvals)
+		rotated = 1
+	if ysum == 0.0:
+		new_xvals = zvals
+		new_yvals = xvals
+		new_zvals = yvals
+		xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum = get_squares_list(ringatoms, xvals, yvals, zvals)
+		rotated = 2
+	
+	coeffplane = do_matrix_stuff(xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum, ringatoms)
+	return coeffplane, xav, yav, zav, rotated
+
+
+def get_squares_list(ringatoms, xvals, yvals, zvals):
+	####################Necessary summations
+	xysum = 0; y2sum = 0; x2sum = 0; zsum = 0; ysum = 0; xsum = 0; xzsum = 0; yzsum = 0
+	for n in range(len(ringatoms)):
+		xy = xvals[n]*yvals[n]
+		xysum = xy+xysum
+		xz = xvals[n]*zvals[n]
+		xzsum = xz+xzsum
+		yz = yvals[n]*zvals[n]
+		yzsum = yz+yzsum
+		x = xvals[n]
+		xsum = x+xsum
+		y = yvals[n]
+		ysum = y+ysum
+		z = zvals[n]
+		zsum = z+zsum
+		x2 = xvals[n]*xvals[n]
+		x2sum = x2+x2sum
+		y2 = yvals[n]*yvals[n]
+		y2sum = y2+y2sum
+	return xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum
+
+def do_matrix_stuff(xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum, ringatoms):
+	###################Matrix and vector used for least squares best fit plane
+	a=matrix([[x2sum, xysum, xsum],[xysum, y2sum, ysum],[xsum, ysum, len(ringatoms)]]) #3x3 matrix
+	b=matrix([[xzsum],[yzsum],[zsum]]) #3x1 matrix
+	try: coeffplane=a.I*b
+	except linalg.linalg.LinAlgError: coeffplane = matrix([[0.0],[0.0],[0.0]])
+	return coeffplane
+
+
 # Find how many separate molecules there are
 def howmanyMol(bondmatrix,startatom):
 	molecule1=[]
@@ -563,7 +644,7 @@ class Assign_Variables:
 		self.ETOZ = []
 		if len(Params.ETOZ) > 0:
 			self.ETOZ.append([int(Params.ETOZ[0].split()[0]), int(Params.ETOZ[0].split()[1])])
-		self.TORSION = []
+		self.TORSION = []; ring = []
 		for i in range(0, MolSpec.NATOMS): 
 			for partner in MolSpec.CONNECTIVITY[i]:
 				nextatom = int(partner.split("__")[0])-1
@@ -632,9 +713,8 @@ class Assign_Variables:
 								currentatom.append(nextlot)
 								
 							if mem == 0: self.TORSION.append([i,nextatom])
-							
-							#if mem>5: #Only larger than 5mem rings are interesting conformationally!
-									#ring.append([x,nextatom])		
+							if mem>5: #Only larger than 5mem rings are interesting conformationally!
+								ring.append([i,nextatom])
 		
 		
 		self.MCNV = len(self.TORSION) 
@@ -649,11 +729,21 @@ class Assign_Variables:
 
 		#Ring variables - not coded yet
 		self.RING = []
-		self.MCRI = 0
+		for ringbond in ring:
+			for atom in ringbond:
+				alreadycounted = 0
+				for member in self.RING:
+					if member == atom: alreadycounted = alreadycounted + 1
+				if alreadycounted == 0:
+					self.RING.append(atom)
+
+		if len(self.RING)==0: self.MCRI = 0
+		if len(self.RING) >0: self.MCRI = 1
 
 		#If there is nothing to vary then exit
 		if self.MCNV == 0 and self.MCRI == 0 and self.NMOLS == 1: print ("\nFATAL ERROR: Found zero rotatable torsions and only one molecule in %s  \n"%MolSpec.NAME); sys.exit()			
-			    
+
+
 #Translate a random number of molecules by a given vector
 def translateMol(FMVAR, ConfSpec):
 	newcoord=[]
@@ -760,6 +850,7 @@ def AtomRot(MolSpec, torsion, geometry):
 		nextlot=[]
 		currentatom.append([torsion[0]-1])
 		currentatom.append([torsion[1]-1])
+		print currentatom
 		while count<100 and stop==0:
 			nextlot=[]
 			for onecurrentatom in currentatom[count]:
@@ -777,12 +868,13 @@ def AtomRot(MolSpec, torsion, geometry):
 			if len(nextlot) == 0:stop=stop+1
 			currentatom.append(nextlot)
 		
-		#print currentatom
+		print "current atom", currentatom
 		for i in range(0,len(geometry)):
 			#print i,geometry[i]
 			newcoord.append(geometry[i])
 		for i in range(2,len(currentatom)-1):
 			for atom in currentatom[i]:
+				print "moving", (atom+1)
 				dotproduct = unitAB[0]*(float(geometry[atom][0]) - float(atomA[0])) + unitAB[1]*(float(geometry[atom][1]) - float(atomA[1])) + unitAB[2]*(float(geometry[atom][2]) - float(atomA[2]))
 				centre = [float(atomA[0]) + dotproduct*unitAB[0], float(atomA[1]) + dotproduct*unitAB[1], float(atomA[2]) + dotproduct*unitAB[2]]
 				v = [float(geometry[atom][0]) - centre[0], float(geometry[atom][1]) - centre[1], float(geometry[atom][2]) - centre[2]]
@@ -1427,7 +1519,6 @@ class getinData:
 # Reads parameters specified in the params file to be used in the conformational search
 
 class getParams:
-	
 	def __init__(self, MolSpec, instruct, log):
 		#Default Parameters
 		self.CSEARCH = "MCMM"
@@ -1532,11 +1623,10 @@ class getoutData:
 					if outlines[i].find("ATOM_CHARGES") > -1:
 						self.NATOMS = i - standor
 			
-				print self.NATOMS	
 				if hasattr(self, "NATOMS"):
 					for i in range (standor,standor+self.NATOMS):
 						#outlines[i] = outlines[i].replace("*", " ")
-						print outlines[i].split()
+						#print outlines[i].split()
 						#self.ATOMTYPES.append((outlines[i].split()[1]))
 						self.CARTESIANS.append([float(outlines[i].split()[0]), float(outlines[i].split()[1]), float(outlines[i].split()[2])])
 			

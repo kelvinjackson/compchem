@@ -31,9 +31,9 @@
 #######  Last modified:  Mar 20, 2013 #########################
 ###############################################################
 
- 
 # Python Libraries ############################################
 import glob, subprocess, sys, os, random, math, tarfile
+from numpy import *
 ###############################################################
 
 # Full Monte Libaries #########################################
@@ -88,7 +88,6 @@ if __name__ == "__main__":
 # Open the structure file #####################################
 	log.Write("\no  Extracting molecule from "+filein+"."+filetype+" ...")
 	MOLSPEC = getinData(filein,log)
-	print MOLSPEC.CHARGE, MOLSPEC.MULT
 ###############################################################	
 	
 # Open the specified parameter file for Monte Carlo parameters 
@@ -156,7 +155,7 @@ if __name__ == "__main__":
 			if len(const) == 4: log.Write("\no  The dihedral "+str(const[0]+1)+"-"+str(const[1]+1)+"-"+str(const[2]+1)+"-"+str(const[3]+1)+" will be constrained ...")
 		if JOB.PROGRAM == "Gaussian":
 			if len(MOLSPEC.CONSTRAINED)!=0: JOB.JOBTYPE = "opt(small,modredundant,loose) "+JOB.JOBTYPE
-			else: JOB.JOBTYPE = "opt(small,loose) "+JOB.JOBTYPE
+			else: JOB.JOBTYPE = "opt(loose) "+JOB.JOBTYPE
 ###############################################################
 
 if JOB.PROGRAM == "Gaussian": 
@@ -190,7 +189,10 @@ for suffix in [".com", ".mop", ".arc", ".joblog", ".errlog", ".chk"]:
 # (eventually when I get round to it) rings ###################
 # If number of steps is not assigned use 3^rotatable torsions #
 FMVAR = Assign_Variables(MOLSPEC, SEARCHPARAMS, log)
-if SEARCHPARAMS.CSEARCH == "MCMM" and SEARCHPARAMS.STEP == 0: SEARCHPARAMS.STEP = int(math.pow(3,FMVAR.MCNV))
+if SEARCHPARAMS.CSEARCH == "MCMM" and SEARCHPARAMS.STEP == 0:
+	SEARCHPARAMS.STEP = int(math.pow(3,FMVAR.MCNV))
+	SEARCHPARAMS.STEP = SEARCHPARAMS.STEP + int(math.pow(3,len(FMVAR.RING)-1))
+	#SEARCHPARAMS.STEP = SEARCHPARAMS.STEP + 20
 if SEARCHPARAMS.CSEARCH == "SUMM":
 	if interactivemode == 1:
 		SEARCHPARAMS.ITVL = raw_input("\no  Required Interval (degrees) for systematic rotations ? ")
@@ -199,8 +201,8 @@ if SEARCHPARAMS.CSEARCH == "SUMM":
 	interval = SEARCHPARAMS.ITVL; ninterval = 360.0/interval
 	SEARCHPARAMS.STEP = int(math.pow(ninterval,FMVAR.MCNV))-1
 ###############################################################
-		
-		
+
+
 # MONTE CARLO SEARCH ##########################################
 start = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime())
 asciiArt(start); Writeintro(MOLSPEC, SEARCHPARAMS, FMVAR, start, log) 
@@ -282,15 +284,10 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 							#print "ETOZ",dihedral,ezisomerize
 							FMVAR.ADJUST.append([int(dihedral[0]), int(dihedral[1]), 180])
 				
-				#Torsions in Rings - Currently Not Supported
-				#if MCRI!=0:
-				#	for ringtorsion in random.sample(FMVAR.RING, 1): FMVAR.ADJUST.append([int(ringtorsion[0])+1, int(ringtorsion[1])+1, random.randint(90,180)])
-				#print "   Applying", len(FMVAR.ADJUST), "torsional rotations to", CSEARCH.NAME[startgeom],"..." 
-				#for adj in FMVAR.ADJUST: print "   About",adj[0],"-",adj[1],"by",adj[2],"deg"
 				
 # Take input geometry and apply specified torsional changes
 				if hasattr(FMVAR, "ADJUST"):
-					print FMVAR.ADJUST
+					#print FMVAR.ADJUST
 					for torsion in FMVAR.ADJUST: CONFSPEC.CARTESIANS = AtomRot(MOLSPEC, torsion, CONFSPEC.CARTESIANS)
 				
 # For separate molecules, alter the distances and orientations between a random number of them
@@ -298,6 +295,77 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 					CONFSPEC.CARTESIANS = translateMol(FMVAR, CONFSPEC)
 					CONFSPEC.CARTESIANS = rotateMol(FMVAR, CONFSPEC)
 
+				if FMVAR.MCRI > 0:
+					#print "   Detected a ring substructure"
+					#print "   Atoms", FMVAR.RING, "are connected"
+
+					coeffplane, xav, yav, zav, rotated = find_coeffplane(FMVAR.RING,CONFSPEC)
+					xcoeff= coeffplane.tolist()[0][0]; ycoeff= coeffplane.tolist()[1][0]; cval= coeffplane.tolist()[2][0]
+					
+					#print "Equation of best-fit plane:","z="+str(xcoeff)+"x+"+str(ycoeff)+"y+"+str(cval)	#This gives the equation for the plane of best-fit
+					####################Make unit vector
+					rawvector=array([xcoeff,ycoeff,-1]) #Need to make into unit vector
+					x=float(rawvector[0]); y=float(rawvector[1]); z=float(rawvector[2])
+					normfactor=1/(x**2+y**2+z**2)**0.5
+					x=x*normfactor; y=y*normfactor; z=z*normfactor
+					if z<0: z=-z;y=-y;x=-x #Sign flip if z is negative
+					#print "   Unit vector:", x, y, z #The length of this vector is 1
+					
+					if rotated == 1:
+						print "************ coordinated system was rotated! ***********"
+						old_x = z; old_y = x; old_z = y
+						if old_z<0: old_z=-old_z;old_y=-old_y;old_x=-old_x
+						print "Unit vector:", old_x, old_y, old_z
+						x = old_x; y = old_y; z = old_z
+					if rotated == 2:
+						print "************ coordinated system was rotated! ***********"
+						old_x = y; old_y = z; old_z = x
+						if old_z<0: old_z=-old_z;old_y=-old_y;old_x=-old_x
+						print "Unit vector:", old_x, old_y, old_z
+						x = old_x; y = old_y; z = old_z
+					if rotated == 3:
+						print "didn't I tell you this was a bad idea?"				
+				
+					nrandom = random.randint(1, 1+len(FMVAR.RING)/2)
+					for atomid in random.sample(FMVAR.RING, nrandom):
+						mag = 1.0
+						magnitude = random.uniform(-1*mag,mag)
+						CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
+						CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
+						CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
+						#print "   TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
+					
+						count = 0; stop=0; currentatom=[]; nextlot=[]
+						currentatom.append([atomid])
+						#print currentatom
+						while count<100 and stop==0:
+							nextlot=[]
+							for onecurrentatom in currentatom[count]:
+								#print "onecurrentatom", (onecurrentatom+1)
+								for partners in CONFSPEC.CONNECTIVITY[onecurrentatom]:
+									#print "partners", partners
+									inf = partners.split("__")
+									for n in range(0,len(inf)/2):
+										noback=0
+										for onepreviousatom in currentatom[count-1]:
+											if (int(inf[2*n])-1)==onepreviousatom: noback=noback+1
+										for onepreviousatom in currentatom[count]:
+											if (int(inf[2*n])-1)==onepreviousatom: noback=noback+1
+										for ringatom in FMVAR.RING:
+											if (int(inf[2*n])-1)==ringatom: noback=noback+1
+										if noback==0: nextlot.append(int(inf[2*n])-1)
+							count=count+1
+							#print count
+							if len(nextlot) == 0:stop=stop+1
+							currentatom.append(nextlot)
+						for subst in currentatom[1:]:
+							for atomid in subst:
+								CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
+								CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
+								CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
+								#print "   ALSO TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
+
+				
 # Check for any VDW contacts smaller than specified limits
 				NBcontacts = checkDists(CONFSPEC, SEARCHPARAMS)
 			CSEARCH.CLASH.append(NBcontacts)
@@ -360,7 +428,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				log.Write("\n   Unsuccessful optimization of "+CONFSPEC.NAME+".out ...")
 				CSEARCH.NFAILED = CSEARCH.NFAILED + 1
 
-			CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
+			#CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
 			OrderConfs(CSEARCH, SEARCHPARAMS, start, log)
 ###############################################################
 
@@ -405,7 +473,7 @@ makeGVformat(filein, MOLSPEC, CSEARCH, SEARCHPARAMS, "fm"); makePDBformat(filein
 ###############################################################
 
 # Multiple Minimization with higher convergence criterion ####
-multmin = 1	
+multmin = 0
 if multmin == 1:
 	log.Write("\no  Reoptimizing conformers with strict convergence crtieria ...")
 	if JOB.PROGRAM == "Mopac": JOB.JOBTYPE = JOB.JOBTYPE+" gnorm=0.0 "
