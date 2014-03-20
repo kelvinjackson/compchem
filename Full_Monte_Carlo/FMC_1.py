@@ -265,14 +265,18 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 			while NBcontacts > 0:
 				
 # The coordinates of the lowest energy, least used structure will be altered
-				CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[startgeom]
+				#print CSEARCH.CARTESIANS[startgeom]
+				for i in range (0,len(CSEARCH.CARTESIANS[startgeom])):
+					for j in range (0,len(CSEARCH.CARTESIANS[startgeom][i])):
+						CONFSPEC.CARTESIANS[i][j] = CSEARCH.CARTESIANS[startgeom][i][j]
 				CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[startgeom]
 				CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
 				CONFSPEC.CHARGE = MOLSPEC.CHARGE
 				CONFSPEC.MULT = MOLSPEC.MULT
 				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
 				nrandom = random.randint(FMVAR.MCNVmin, FMVAR.MCNVmax)
-					
+				#print CONFSPEC.CARTESIANS
+				
 				if FMVAR.MCNV != 0:
 					FMVAR.ADJUST = []
 					for dihedral in random.sample(FMVAR.TORSION, nrandom): 
@@ -326,14 +330,15 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 					if rotated == 3:
 						print "didn't I tell you this was a bad idea?"				
 				
-					nrandom = random.randint(1, 1+len(FMVAR.RING)/2)
+					nrandom = random.randint(1, len(FMVAR.RING)/2)
+					
 					for atomid in random.sample(FMVAR.RING, nrandom):
 						mag = 1.0
 						magnitude = random.uniform(-1*mag,mag)
 						CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
 						CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
 						CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
-						#print "   TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
+						#print "      TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
 					
 						count = 0; stop=0; currentatom=[]; nextlot=[]
 						currentatom.append([atomid])
@@ -363,11 +368,13 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 								CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
 								CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
 								CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
-								#print "   ALSO TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
+								#print "         ALSO TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
 
+						# also need to do a torsion rotation so that the dihedrals of substituents wrt ring are not altered.
 				
 # Check for any VDW contacts smaller than specified limits
 				NBcontacts = checkDists(CONFSPEC, SEARCHPARAMS)
+				if NBcontacts != 0: print "   EXTREME CONTACTS: TRYING AGAIN..."
 			CSEARCH.CLASH.append(NBcontacts)
 
 # Write input and optimize geometry

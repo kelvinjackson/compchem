@@ -850,7 +850,7 @@ def AtomRot(MolSpec, torsion, geometry):
 		nextlot=[]
 		currentatom.append([torsion[0]-1])
 		currentatom.append([torsion[1]-1])
-		print currentatom
+		#print currentatom
 		while count<100 and stop==0:
 			nextlot=[]
 			for onecurrentatom in currentatom[count]:
@@ -868,13 +868,13 @@ def AtomRot(MolSpec, torsion, geometry):
 			if len(nextlot) == 0:stop=stop+1
 			currentatom.append(nextlot)
 		
-		print "current atom", currentatom
+		#print "current atom", currentatom
 		for i in range(0,len(geometry)):
 			#print i,geometry[i]
 			newcoord.append(geometry[i])
 		for i in range(2,len(currentatom)-1):
 			for atom in currentatom[i]:
-				print "moving", (atom+1)
+				#print "moving", (atom+1)
 				dotproduct = unitAB[0]*(float(geometry[atom][0]) - float(atomA[0])) + unitAB[1]*(float(geometry[atom][1]) - float(atomA[1])) + unitAB[2]*(float(geometry[atom][2]) - float(atomA[2]))
 				centre = [float(atomA[0]) + dotproduct*unitAB[0], float(atomA[1]) + dotproduct*unitAB[1], float(atomA[2]) + dotproduct*unitAB[2]]
 				v = [float(geometry[atom][0]) - centre[0], float(geometry[atom][1]) - centre[1], float(geometry[atom][2]) - centre[2]]
