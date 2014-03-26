@@ -40,6 +40,8 @@ G09_EXEC = 'g09'
 MOPAC_EXEC = '/opt/mopac/MOPAC2012.exe'
 ###############################################################
 
+ECOMP = 5.0
+
 # The time elapsed between two specified Y/M/D 24H/M/S format #
 def RealTime(time1, time2):
 	timeTuple1 = time.strptime(time1, "%Y/%m/%d %H:%M:%S")
@@ -275,10 +277,10 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 		torval1=getTorsion(ConfSpec)
 		#print ConfSpec.NAME
 		#print ConfSpec.CARTESIANS
-		#print torval1
+		print torval1
 		#print CSearch.NAME[savedconf]
 		#print CSearch.CARTESIANS[savedconf]
-		#print CSearch.TORVAL[savedconf]
+		print CSearch.TORVAL[savedconf]
 		for x in range(0,len(torval1)):
 			difftor=math.sqrt((torval1[x]-CSearch.TORVAL[savedconf][x])*(torval1[x]-CSearch.TORVAL[savedconf][x]))
 			if difftor>180.0:
@@ -362,8 +364,8 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 				alteredsum = alteredsum + math.pow(torval1[y],2.0)
 			
 			if math.pow((originalsum-alteredsum),2.0) < 0.1:
-				print originalsum, alteredsum
-				print "comparing torsions"
+				#print originalsum, alteredsum
+				#print "comparing torsions"
 				for z in range(0,len(torval1)):
 					#print savedconf, "-", x, torval1[x], CSearch.TORVAL[savedconf][x]
 					difftor=math.sqrt((torval1[z]-CSearch.TORVAL[savedconf][z])*(torval1[z]-CSearch.TORVAL[savedconf][z]))
@@ -373,7 +375,7 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 					#print torval1[z], CSearch.TORVAL[savedconf][z], difftor
 				if len(torval1)!=0:
 					tordiff=math.sqrt(tordiff/len(torval1))	
-					print tordiff
+					#print tordiff
 					if tordiff<besttordiff:
 						besttordiff=tordiff
 					
@@ -381,9 +383,9 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 		#this is a horrible hack which returns the cartesians back to before equivalent coordinate systems were considered....
 		ConfSpec.CARTESIANS = tempcart
 		
-	#print "   ----------"
-	#print "   "+str(besttordiff)
-	#print "   ----------"
+	print "   ----------"
+	print "   "+str(besttordiff)
+	print "   ----------"
 	#print ConfSpec.NAME, CSearch.NAME[savedconf], besttordiff
 	if besttordiff<SearchParams.COMP: sameval=sameval+1
 	return sameval
@@ -776,12 +778,11 @@ def translateMol(FMVAR, ConfSpec):
 	
 	#Random intermolecular vectors are altered
 	nrand = random.randint(1, FMVAR.NMOLS-1)
-	movemol = random.sample(xrange(0,FMVAR.NMOLS), nrand)
-
+	movemol = random.sample(xrange(1,FMVAR.NMOLS), nrand)
 
 	for mol in movemol:
 		trans = [random.uniform(-1.0,1.0), random.uniform(-1.0,1.0), random.uniform(-1.0,1.0)]
-		
+		print "   TRANSLATING MOLECULE", str(mol+1), "BY", trans	
 		for atom in FMVAR.MOLATOMS[mol]:
 			newcoord[atom]=[newcoord[atom][0]+trans[0],newcoord[atom][1]+trans[1],newcoord[atom][2]+trans[2]]
 	
@@ -795,12 +796,12 @@ def rotateMol(FMVAR, ConfSpec):
 	
 	#Random molecules are spun about their centre of mass
 	nrand = random.randint(1, FMVAR.NMOLS-1)
-	movemol = random.sample(xrange(0,FMVAR.NMOLS), nrand)
+	movemol = random.sample(xrange(1,FMVAR.NMOLS), nrand)
 	
 	
 	for mol in movemol:
 		rot = [random.randint(90,180), random.randint(90,180), random.randint(90,180)]
-		
+		print "   ROTATING MOLECULE", str(mol+1), "BY", rot	
 		coords1 = []
 		types1 = []
 		mass1 = 0.0
@@ -1015,7 +1016,7 @@ class RemoveConformer:
 class CleanAfterJob:	
 	def __init__(self, Job, Confspec, samecheck, toohigh, isomerize):					
 		try:
-			for suffix in [".co", ".mop", ".aux", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
+			for suffix in [".com", ".mop", ".aux", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
 				if os.path.exists(Confspec.NAME+suffix): os.remove(Confspec.NAME+suffix)
 
 			# If discarded remove the outfile as well		
@@ -1558,6 +1559,7 @@ class getParams:
 		self.ETOZ=[]
 		self.HSWAP=0
 		self.STEP=0
+		self.MMIN=1
 		self.LEVL="PM6"
 		self.NNBO=0
 		
@@ -1571,6 +1573,7 @@ class getParams:
 			
 			for line in instructlines:
 				if line.find("SUMM") > -1: self.CSEARCH = "SUMM"
+				if line.find("MMIN") > -1: self.MMIN = int(line.split("=")[1].rstrip('\n').lstrip())
 				if line.find("ITVL") > -1: self.ITVL = int(line.split("=")[1].rstrip('\n').lstrip())
 				if line.find("LEVL") > -1: self.LEVL = line.split("=")[1].rstrip('\n').lstrip()
 				if line.find("NNBO") > -1: self.NNBO = int(line.split("=")[1].rstrip('\n').lstrip())
@@ -1994,9 +1997,9 @@ def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
 			# Clustering - check if the energy and geometry match a previously saved structure
 			for j in range(0, i):
 				#print "checking ", CSEARCH.NAME[i], "against", CSEARCH.NAME[j]
-				if (CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5 < -0.5: break
-				if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < 0.5:
-					#print "   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
+				#if (CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5 < -0.5: break
+				if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < ECOMP:
+					print "   COMPARING   "+CONFSPEC.NAME+"   "+str(CONFSPEC.ENERGY)+" cf "+CSEARCH.NAME[j]+"   "+str(CSEARCH.ENERGY[j])+": ediff = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
 					#what if they are suspiciously similar in energy?
 					if checkSame(CONFSPEC, CSEARCH, SEARCHPARAMS, j) > 0 or checkSame(makemirror(CONFSPEC), CSEARCH, SEARCHPARAMS, j) > 0:
 						log.Write("   "+(CONFSPEC.NAME+" is a duplicate of conformer "+CSEARCH.NAME[j]).ljust(50))

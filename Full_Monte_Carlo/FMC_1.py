@@ -268,8 +268,8 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				CONFSPEC.CARTESIANS = []
 				# The coordinates of the lowest energy, least used structure will be altered
 				print "   STARTING FROM GEOMETRY OF", CSEARCH.NAME[startgeom]
-				print CSEARCH.CARTESIANS[startgeom]
-				print "SUM1", sum(CSEARCH.CARTESIANS[startgeom])
+				#print CSEARCH.CARTESIANS[startgeom]
+				#print "SUM1", sum(CSEARCH.CARTESIANS[startgeom])
 				for i in range (0,len(CSEARCH.CARTESIANS[startgeom])):
 					CONFSPEC.CARTESIANS.append([])
 					#print (CSEARCH.CARTESIANS[startgeom][i])
@@ -282,8 +282,8 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				CONFSPEC.MULT = MOLSPEC.MULT
 				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
 				nrandom = random.randint(FMVAR.MCNVmin, FMVAR.MCNVmax)
-				print CONFSPEC.CARTESIANS
-				print getTorsion(CONFSPEC)
+				#print CONFSPEC.CARTESIANS
+				#print getTorsion(CONFSPEC)
 	
 				if FMVAR.MCNV != 0:
 					FMVAR.ADJUST = []
@@ -375,7 +375,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 							for ringatom in FMVAR.RING:
 								if (int(inf[2*n])-1)==ringatom:
 									ringneighbour.append(int(inf[2*n])-1)
-						print "SUM2", sum(CSEARCH.CARTESIANS[startgeom])
+						#print "SUM2", sum(CSEARCH.CARTESIANS[startgeom])
 						print "   Neighbours in the ring", ringneighbour
 						oldvecA = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[0]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[0]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[0]][2]]
 						oldvecB = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[1]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[1]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[1]][2]]
@@ -383,7 +383,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 						oldmag = (oldnorm[0]**2 + oldnorm[1]**2 + oldnorm[2]**2) ** 0.5
 						oldnorm = [oldnorm[0]/oldmag, oldnorm[1]/oldmag, oldnorm[2]/oldmag]
 						
-						print "SUM3", sum(CSEARCH.CARTESIANS[startgeom])
+						#print "SUM3", sum(CSEARCH.CARTESIANS[startgeom])
 						mag = 1.0; magnitude = random.uniform(-1*mag,mag)
 						print CONFSPEC.CARTESIANS[atomid]
 						CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
@@ -398,7 +398,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 						newmag = (newnorm[0]**2 + newnorm[1]**2 + newnorm[2]**2) ** 0.5
 						newnorm = [newnorm[0]/newmag, newnorm[1]/newmag, newnorm[2]/newmag]
 
-						print "SUM4", sum(CSEARCH.CARTESIANS[startgeom])
+						#print "SUM4", sum(CSEARCH.CARTESIANS[startgeom])
 						#print oldnorm, newnorm
 						rotang = 180.0/math.pi*math.acos(oldnorm[0]*newnorm[0]+oldnorm[1]*newnorm[1]+oldnorm[2]*newnorm[2])
 						print "     A ROTATION THROUGH", rotang
@@ -477,7 +477,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 #Check whether any stereogenic centres have been epimerized
 				chircheck = checkchir(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
 				if chircheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
-                                else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: atom"+str(chircheck[1])+" has been epimerized").ljust(50))
+                                else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: atom "+str(chircheck[1])+" has been epimerized").ljust(50))
 
 	
 #Check whether the molecule has high energy				
@@ -488,9 +488,9 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 # Save or discard the optimized structure - reject if higher than global minimum by DEMX kJ/mol
 				if toohigh == 0 and isomerize == 0: 
 					for j in range(0, CSEARCH.NSAVED): 
-						if (CONFSPEC.ENERGY-CSEARCH.GLOBMIN)*2625.5 < -0.1: break
-						if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < 0.5:
-							#print str(CONFSPEC.ENERGY)+"   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
+						#if (CONFSPEC.ENERGY-CSEARCH.GLOBMIN)*2625.5 < -0.1: break
+						if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < ECOMP:
+							print "   COMPARING   "+CONFSPEC.NAME+"   "+str(CONFSPEC.ENERGY)+" cf "+CSEARCH.NAME[j]+"   "+str(CSEARCH.ENERGY[j])+": ediff = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
 							if checkSame(CONFSPEC, CSEARCH, SEARCHPARAMS, j) > 0 or checkSame(makemirror(CONFSPEC), CSEARCH, SEARCHPARAMS, j) > 0:
 								log.Write("   "+(CONFSPEC.NAME+" is a duplicate of conformer "+CSEARCH.NAME[j]+" ... ").ljust(50))
 								CSEARCH.TIMESFOUND[j] = CSEARCH.TIMESFOUND[j] + 1
@@ -559,8 +559,7 @@ makeGVformat(filein, MOLSPEC, CSEARCH, SEARCHPARAMS, "fm"); makePDBformat(filein
 ###############################################################
 
 # Multiple Minimization with higher convergence criterion ####
-multmin = 0
-if multmin == 1:
+if SEARCHPARAMS.MMIN >0:
 	log.Write("\no  Reoptimizing conformers with strict convergence criteria ...")
 	if JOB.PROGRAM == "Mopac": JOB.JOBTYPE = JOB.JOBTYPE+" gnorm=0.0 "
 	if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = JOB.JOBTYPE.replace("loose", "")
