@@ -181,7 +181,7 @@ if isJobFinished(JOB, MOLSPEC) == 2: log.Fatal("\nFATAL ERROR: Optimization of [
 # Read the output from the optimization then clean up #########
 MOLSPEC.CARTESIANS =  getoutData(MOLSPEC).CARTESIANS
 MOLSPEC.ENERGY =  getoutData(MOLSPEC).ENERGY
-for suffix in [".com", ".mop", ".arc", ".joblog", ".errlog", ".chk"]:
+for suffix in [".com", ".csh", ".mop", ".arc", ".aux", ".joblog", ".errlog", ".chk"]:
 	if os.path.exists(MOLSPEC.NAME+suffix): os.remove(MOLSPEC.NAME+suffix)
 ###############################################################
 	
@@ -262,21 +262,29 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 			CSEARCH.CLASH.append(NBcontacts)
 		
 		if SEARCHPARAMS.CSEARCH == "MCMM":
-			while NBcontacts > 0:
-				
-# The coordinates of the lowest energy, least used structure will be altered
-				#print CSEARCH.CARTESIANS[startgeom]
+			
+			attempts = 0
+			while NBcontacts > 0 and attempts < 100:
+				CONFSPEC.CARTESIANS = []
+				# The coordinates of the lowest energy, least used structure will be altered
+				print "   STARTING FROM GEOMETRY OF", CSEARCH.NAME[startgeom]
+				print CSEARCH.CARTESIANS[startgeom]
+				print "SUM1", sum(CSEARCH.CARTESIANS[startgeom])
 				for i in range (0,len(CSEARCH.CARTESIANS[startgeom])):
-					for j in range (0,len(CSEARCH.CARTESIANS[startgeom][i])):
-						CONFSPEC.CARTESIANS[i][j] = CSEARCH.CARTESIANS[startgeom][i][j]
+					CONFSPEC.CARTESIANS.append([])
+					#print (CSEARCH.CARTESIANS[startgeom][i])
+					for cart in (CSEARCH.CARTESIANS[startgeom][i]):
+						#print i, cart
+						CONFSPEC.CARTESIANS[i].append(cart)
 				CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[startgeom]
 				CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
 				CONFSPEC.CHARGE = MOLSPEC.CHARGE
 				CONFSPEC.MULT = MOLSPEC.MULT
 				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
 				nrandom = random.randint(FMVAR.MCNVmin, FMVAR.MCNVmax)
-				#print CONFSPEC.CARTESIANS
-				
+				print CONFSPEC.CARTESIANS
+				print getTorsion(CONFSPEC)
+	
 				if FMVAR.MCNV != 0:
 					FMVAR.ADJUST = []
 					for dihedral in random.sample(FMVAR.TORSION, nrandom): 
@@ -293,16 +301,18 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				if hasattr(FMVAR, "ADJUST"):
 					#print FMVAR.ADJUST
 					for torsion in FMVAR.ADJUST: CONFSPEC.CARTESIANS = AtomRot(MOLSPEC, torsion, CONFSPEC.CARTESIANS)
+				#print "AFTER ADJUSTMENT:"
+				#print getTorsion(CONFSPEC) 
 				
 # For separate molecules, alter the distances and orientations between a random number of them
 				if FMVAR.NMOLS > 1:
 					CONFSPEC.CARTESIANS = translateMol(FMVAR, CONFSPEC)
 					CONFSPEC.CARTESIANS = rotateMol(FMVAR, CONFSPEC)
-
+				
 				if FMVAR.MCRI > 0:
-					#print "   Detected a ring substructure"
-					#print "   Atoms", FMVAR.RING, "are connected"
-
+					print "   Detected a ring substructure: atoms", FMVAR.RING, "are connected"
+					rcom = find_centroid(FMVAR.RING,CONFSPEC)[3:]
+					
 					coeffplane, xav, yav, zav, rotated = find_coeffplane(FMVAR.RING,CONFSPEC)
 					xcoeff= coeffplane.tolist()[0][0]; ycoeff= coeffplane.tolist()[1][0]; cval= coeffplane.tolist()[2][0]
 					
@@ -333,18 +343,12 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 					nrandom = random.randint(1, len(FMVAR.RING)/2)
 					
 					for atomid in random.sample(FMVAR.RING, nrandom):
-						mag = 1.0
-						magnitude = random.uniform(-1*mag,mag)
-						CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
-						CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
-						CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
-						#print "      TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
 					
 						count = 0; stop=0; currentatom=[]; nextlot=[]
 						currentatom.append([atomid])
 						#print currentatom
 						while count<100 and stop==0:
-							nextlot=[]
+							nextlot=[]; ringneighbour = []
 							for onecurrentatom in currentatom[count]:
 								#print "onecurrentatom", (onecurrentatom+1)
 								for partners in CONFSPEC.CONNECTIVITY[onecurrentatom]:
@@ -357,29 +361,98 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 										for onepreviousatom in currentatom[count]:
 											if (int(inf[2*n])-1)==onepreviousatom: noback=noback+1
 										for ringatom in FMVAR.RING:
-											if (int(inf[2*n])-1)==ringatom: noback=noback+1
+											if (int(inf[2*n])-1)==ringatom:
+												#ringneighbour.append(int(inf[2*n])-1)
+												noback=noback+1
 										if noback==0: nextlot.append(int(inf[2*n])-1)
 							count=count+1
 							#print count
 							if len(nextlot) == 0:stop=stop+1
 							currentatom.append(nextlot)
-						for subst in currentatom[1:]:
-							for atomid in subst:
-								CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
-								CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
-								CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
-								#print "         ALSO TRANSLATING ATOM", (atomid+1), "BY ", magnitude, "TIMES", [x,y,z]
+						
+						for partners in CONFSPEC.CONNECTIVITY[atomid]:
+							inf = partners.split("__")
+							for ringatom in FMVAR.RING:
+								if (int(inf[2*n])-1)==ringatom:
+									ringneighbour.append(int(inf[2*n])-1)
+						print "SUM2", sum(CSEARCH.CARTESIANS[startgeom])
+						print "   Neighbours in the ring", ringneighbour
+						oldvecA = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[0]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[0]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[0]][2]]
+						oldvecB = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[1]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[1]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[1]][2]]
+						oldnorm = [oldvecA[1]*oldvecB[2]-oldvecA[2]*oldvecB[1], oldvecA[2]*oldvecB[0]-oldvecA[0]*oldvecB[2], oldvecA[0]*oldvecB[1]-oldvecA[1]*oldvecB[0]]
+						oldmag = (oldnorm[0]**2 + oldnorm[1]**2 + oldnorm[2]**2) ** 0.5
+						oldnorm = [oldnorm[0]/oldmag, oldnorm[1]/oldmag, oldnorm[2]/oldmag]
+						
+						print "SUM3", sum(CSEARCH.CARTESIANS[startgeom])
+						mag = 1.0; magnitude = random.uniform(-1*mag,mag)
+						print CONFSPEC.CARTESIANS[atomid]
+						CONFSPEC.CARTESIANS[atomid][0] = CONFSPEC.CARTESIANS[atomid][0] + x * magnitude
+						CONFSPEC.CARTESIANS[atomid][1] = CONFSPEC.CARTESIANS[atomid][1] + y * magnitude
+						CONFSPEC.CARTESIANS[atomid][2] = CONFSPEC.CARTESIANS[atomid][2] + z * magnitude
+						print "      TRANSLATING ATOM", (atomid+1), "BY ", [magnitude*x,magnitude*y,magnitude*z]
+						print CONFSPEC.CARTESIANS[atomid]
+						
+						newvecA = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[0]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[0]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[0]][2]]
+						newvecB = [CONFSPEC.CARTESIANS[atomid][0] - CONFSPEC.CARTESIANS[ringneighbour[1]][0], CONFSPEC.CARTESIANS[atomid][1] - CONFSPEC.CARTESIANS[ringneighbour[1]][1], CONFSPEC.CARTESIANS[atomid][2] - CONFSPEC.CARTESIANS[ringneighbour[1]][2]]
+						newnorm = [newvecA[1]*newvecB[2]-newvecA[2]*newvecB[1], newvecA[2]*newvecB[0]-newvecA[0]*newvecB[2], newvecA[0]*newvecB[1]-newvecA[1]*newvecB[0]]
+						newmag = (newnorm[0]**2 + newnorm[1]**2 + newnorm[2]**2) ** 0.5
+						newnorm = [newnorm[0]/newmag, newnorm[1]/newmag, newnorm[2]/newmag]
 
-						# also need to do a torsion rotation so that the dihedrals of substituents wrt ring are not altered.
+						print "SUM4", sum(CSEARCH.CARTESIANS[startgeom])
+						#print oldnorm, newnorm
+						rotang = 180.0/math.pi*math.acos(oldnorm[0]*newnorm[0]+oldnorm[1]*newnorm[1]+oldnorm[2]*newnorm[2])
+						print "     A ROTATION THROUGH", rotang
+						#newvec = [CONFSPEC.CARTESIANS[atomid][0] - rcom[0], CONFSPEC.CARTESIANS[atomid][1] - rcom[1], CONFSPEC.CARTESIANS[atomid][2] - rcom[2]]
+						#coords = [oldvec, [0.0,0.0,0.0],newvec]
+						#rotang = calcangle(0,1,2,coords)
+
+						#vectorAB =  [oldvec[1]*z-oldvec[2]*y, oldvec[2]*x -oldvec[0]*y, oldvec[0]*y-oldvec[1]*x]
+						#print "      OLD VECTOR FROM COM", oldvec
+						#print "      NEW VECTOR FROM COM", newvec
+						#print "      A ROTATION OF",rotang
+						#print "      ABOUT", vectorAB
+						#distAB = math.sqrt(vectorAB[0]*vectorAB[0]+vectorAB[1]*vectorAB[1]+vectorAB[2]*vectorAB[2])
+						#unitAB = [vectorAB[0]/distAB,vectorAB[1]/distAB,vectorAB[2]/distAB]
+
+
+						for subst in currentatom[1:]:
+							for nextatomid in subst:
+								print "         ALSO TRANSLATING ATOM", (nextatomid+1), "BY ", [magnitude*x,magnitude*y,magnitude*z]
+								CONFSPEC.CARTESIANS[nextatomid][0] = CONFSPEC.CARTESIANS[nextatomid][0] + x * magnitude
+								CONFSPEC.CARTESIANS[nextatomid][1] = CONFSPEC.CARTESIANS[nextatomid][1] + y * magnitude
+								CONFSPEC.CARTESIANS[nextatomid][2] = CONFSPEC.CARTESIANS[nextatomid][2] + z * magnitude
+								
+								print "         ALSO ROTATING ATOM", (nextatomid+1), "THROUGH ANGLE", rotang, "ABOUT THE AXIS", ringneighbour
+								print CONFSPEC.CARTESIANS[nextatomid]
+								
+								atomA = ringneighbour[0]; atomB = ringneighbour[1]
+								vectorAB = [CONFSPEC.CARTESIANS[atomB][0]-CONFSPEC.CARTESIANS[atomA][0],CONFSPEC.CARTESIANS[atomB][1]-CONFSPEC.CARTESIANS[atomA][1],CONFSPEC.CARTESIANS[atomB][2]-CONFSPEC.CARTESIANS[atomA][2]]
+								distAB = (vectorAB[0]**2+vectorAB[1]**2+vectorAB[2]**2) ** 0.5
+								unitAB = [vectorAB[0]/distAB,vectorAB[1]/distAB,vectorAB[2]/distAB]
+
+								dotproduct = unitAB[0]*(CONFSPEC.CARTESIANS[nextatomid][0] - CONFSPEC.CARTESIANS[atomid][0]) + unitAB[1]*(CONFSPEC.CARTESIANS[nextatomid][1] - CONFSPEC.CARTESIANS[atomid][1]) + unitAB[2]*(CONFSPEC.CARTESIANS[nextatomid][2] - CONFSPEC.CARTESIANS[atomid][2])
+								centre = [CONFSPEC.CARTESIANS[atomid][0] + dotproduct*unitAB[0], CONFSPEC.CARTESIANS[atomid][1] + dotproduct*unitAB[1], CONFSPEC.CARTESIANS[atomid][2] + dotproduct*unitAB[2]]
+								v = [CONFSPEC.CARTESIANS[nextatomid][0] - centre[0], CONFSPEC.CARTESIANS[nextatomid][1] - centre[1], CONFSPEC.CARTESIANS[nextatomid][2] - centre[2]]
+								theta = -float(rotang)/180.0*math.pi
+								d = (v[0]**2+v[1]**2+v[2]**2) ** 0.5
+								px = v[0]*math.cos(theta) + v[1]*math.sin(theta)*unitAB[2] - v[2]*math.sin(theta)*unitAB[1]
+								py = v[1]*math.cos(theta) + v[2]*math.sin(theta)*unitAB[0] - v[0]*math.sin(theta)*unitAB[2]
+								pz = v[2]*math.cos(theta) + v[0]*math.sin(theta)*unitAB[1] - v[1]*math.sin(theta)*unitAB[0]
+								CONFSPEC.CARTESIANS[nextatomid] = [px + centre[0], py + centre[1], pz + centre[2]]
+								print CONFSPEC.CARTESIANS[nextatomid]
 				
 # Check for any VDW contacts smaller than specified limits
 				NBcontacts = checkDists(CONFSPEC, SEARCHPARAMS)
-				if NBcontacts != 0: print "   EXTREME CONTACTS: TRYING AGAIN..."
+				if NBcontacts != 0:
+					attempts = attempts + 1
+					print "   EXTREME CONTACTS: TRYING AGAIN..."
 			CSEARCH.CLASH.append(NBcontacts)
 
 # Write input and optimize geometry
 		#print CONFSPEC.CARTESIANS
-		if NBcontacts == 0: writeInput(JOB, CONFSPEC); submitJob(JOB, CONFSPEC, log)
+		if NBcontacts == 0 and attempts < 100: print "   SUCCESSFULLY ALTERED GEOM..."
+		if attempts > 99 and NBcontacts != 0: print "   EXCEEDED MAXIMUM ATTEMPTS TO ALTER GEOM..."
+		writeInput(JOB, CONFSPEC); submitJob(JOB, CONFSPEC, log)
 
 # Filter after optimization
 	for i in range(((CSEARCH.STEP-1)*SEARCHPARAMS.POOL+1),((CSEARCH.STEP)*SEARCHPARAMS.POOL)+1):
@@ -400,7 +473,13 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				concheck = checkconn(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
 				if concheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
 				else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: "+concheck[1]+concheck[2]+" has broken from "+concheck[3]+concheck[4]).ljust(50))
-				
+			
+#Check whether any stereogenic centres have been epimerized
+				chircheck = checkchir(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
+				if chircheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
+                                else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: atom"+str(chircheck[1])+" has been epimerized").ljust(50))
+
+	
 #Check whether the molecule has high energy				
 				if ((CONFSPEC.ENERGY-CSEARCH.GLOBMIN)*2625.5) < SEARCHPARAMS.DEMX: toohigh = 0
 				else: toohigh = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected due to high energy ... ").ljust(50))
@@ -435,7 +514,7 @@ while CSEARCH.STEP*SEARCHPARAMS.POOL <= SEARCHPARAMS.STEP:
 				log.Write("\n   Unsuccessful optimization of "+CONFSPEC.NAME+".out ...")
 				CSEARCH.NFAILED = CSEARCH.NFAILED + 1
 
-			#CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
+			CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
 			OrderConfs(CSEARCH, SEARCHPARAMS, start, log)
 ###############################################################
 
@@ -482,7 +561,7 @@ makeGVformat(filein, MOLSPEC, CSEARCH, SEARCHPARAMS, "fm"); makePDBformat(filein
 # Multiple Minimization with higher convergence criterion ####
 multmin = 0
 if multmin == 1:
-	log.Write("\no  Reoptimizing conformers with strict convergence crtieria ...")
+	log.Write("\no  Reoptimizing conformers with strict convergence criteria ...")
 	if JOB.PROGRAM == "Mopac": JOB.JOBTYPE = JOB.JOBTYPE+" gnorm=0.0 "
 	if JOB.PROGRAM == "Gaussian": JOB.JOBTYPE = JOB.JOBTYPE.replace("loose", "")
 	MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log)

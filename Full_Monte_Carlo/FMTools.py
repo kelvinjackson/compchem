@@ -389,6 +389,30 @@ def checkSame(ConfSpec, CSearch, SearchParams, savedconf):
 	return sameval
 	
 
+#Check the stereochemistry has not been changed
+def checkchir(ConfSpec, MolSpec, CSearch, SearchParams):
+	epimerized = 0; epimatom = 0
+	for i in range(0,len(ConfSpec.CARTESIANS)):
+		if MolSpec.ATOMTYPES[i] == "C":
+			if len(MolSpec.CONNECTIVITY[i]) == 4:
+				#print "\nATOM", MolSpec.ATOMTYPES[i], (i),
+				abcd = []; types = []
+				for partners in MolSpec.CONNECTIVITY[i]:
+					abcd.append(int(partners.split("__")[0])-1)
+					types.append(MolSpec.ATOMTYPES[int(partners.split("__")[0])-1])
+				numh = 0
+				for type in types:
+					if type == "H": numh = numh + 1
+				
+				if numh <= 1:
+					#print "   Computing dihedral angle between", abcd
+					if math.fabs(calcdihedral(abcd[0],abcd[1],abcd[2],abcd[3],ConfSpec.CARTESIANS) - calcdihedral(abcd[0],abcd[1],abcd[2],abcd[3],MolSpec.CARTESIANS)) > 30.0:
+						print "   POSSIBLY EPIMERIZED!",i, abcd, types
+						print calcdihedral(abcd[0],abcd[1],abcd[2],abcd[3],ConfSpec.CARTESIANS), calcdihedral(abcd[0],abcd[1],abcd[2],abcd[3],MolSpec.CARTESIANS)
+						epimerized = 1; epimatom = (i+1)
+	return [epimerized,epimatom]
+
+
 #Check the connectivity and compare to the starting structure
 def checkconn(ConfSpec, MolSpec, CSearch, SearchParams):
 	checkval=0
@@ -874,7 +898,7 @@ def AtomRot(MolSpec, torsion, geometry):
 			newcoord.append(geometry[i])
 		for i in range(2,len(currentatom)-1):
 			for atom in currentatom[i]:
-				#print "moving", (atom+1)
+				#print "Rotating", (atom+1), "about", torsion[0]
 				dotproduct = unitAB[0]*(float(geometry[atom][0]) - float(atomA[0])) + unitAB[1]*(float(geometry[atom][1]) - float(atomA[1])) + unitAB[2]*(float(geometry[atom][2]) - float(atomA[2]))
 				centre = [float(atomA[0]) + dotproduct*unitAB[0], float(atomA[1]) + dotproduct*unitAB[1], float(atomA[2]) + dotproduct*unitAB[2]]
 				v = [float(geometry[atom][0]) - centre[0], float(geometry[atom][1]) - centre[1], float(geometry[atom][2]) - centre[2]]
@@ -991,7 +1015,7 @@ class RemoveConformer:
 class CleanAfterJob:	
 	def __init__(self, Job, Confspec, samecheck, toohigh, isomerize):					
 		try:
-			for suffix in [".com", ".mop", ".aux", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
+			for suffix in [".co", ".mop", ".aux", ".arc", ".temp", ".end", ".chk", ".joblog", ".csh", ".errlog"]: 
 				if os.path.exists(Confspec.NAME+suffix): os.remove(Confspec.NAME+suffix)
 
 			# If discarded remove the outfile as well		
@@ -1126,7 +1150,7 @@ class FMLog:
 		# Write to log
 		self.log.write(message + "\n")
 	
-    # Write a message only to the log and not to the terminal
+	# Write a message only to the log and not to the terminal
 	def Writeonlyfile(self, message):
 		# Write to log
 		self.log.write(message)
@@ -1157,7 +1181,7 @@ class Writeintro:
 		strucname = MolSpec.NAME.split("_step_0")[0]
 		torstring=""
 		for torsion in Variables.TORSION: torstring = torstring+"{"+str(MolSpec.ATOMTYPES[torsion[0]])+str(torsion[0]+1)+"-"+str(MolSpec.ATOMTYPES[torsion[1]])+str((torsion[1]+1))+"} "
-        
+	
 		fixtstring=""
 		for fixed in Params.FIXEDATOMS: fixtstring = fixtstring+"{"+str(MolSpec.ATOMTYPES[fixed[0]-1])+str(fixed[0])+"-"+str(MolSpec.ATOMTYPES[fixed[1]-1])+str((fixed[1]))+"} "
 		
@@ -1175,7 +1199,7 @@ class Writeintro:
 			equistring =equistring+"} "
 		
 		# ringstring=""
-        # for ringatom in Variables.RING: ringstring = ringstring+"{"+str(MolSpec.ATOMTYPES[ringatom[0]])+str(ringatom[0]+1)+"-"+str(MolSpec.ATOMTYPES[ringatom[1]])+str((ringatom[1]+1))+"} "
+		# for ringatom in Variables.RING: ringstring = ringstring+"{"+str(MolSpec.ATOMTYPES[ringatom[0]])+str(ringatom[0]+1)+"-"+str(MolSpec.ATOMTYPES[ringatom[1]])+str((ringatom[1]+1))+"} "
 		
 		log.Write(dashedline+"\n   |    "+("FULL_MONTE "+Params.CSEARCH+" search on "+strucname).ljust(leftcol)+("|").rjust(rightcol))
 		log.Write("   | o  "+("COMP: "+str(Params.COMP)+" degrees").ljust(leftcol)+("|").rjust(rightcol))
@@ -1717,8 +1741,8 @@ class getoutData:
 			outfile = open(self.NAME+".log","r");
 			outlines = outfile.readlines()
 		if os.path.exists(self.NAME+".aux"):
-                        outfile = open(self.NAME+".aux","r");
-                        outlines = outfile.readlines()
+			outfile = open(self.NAME+".aux","r");
+			outlines = outfile.readlines()
 
 		
 		getFORMAT(self, outlines)
@@ -1893,97 +1917,103 @@ class writeInput:
 ###############################################################
 def MultMin(CSEARCH, SEARCHPARAMS,CONFSPEC, MOLSPEC, JOB, start, log):
 	
-    i = 0
-    while i < len(CSEARCH.NAME):
-        for k in range(0,SEARCHPARAMS.POOL):
+	i = 0
+	while i < len(CSEARCH.NAME):
+		for k in range(0,SEARCHPARAMS.POOL):
 			# Replace geometry and energy of conformer with highly converged values
-            if (i+k) < len(CSEARCH.NAME):
-                CONFSPEC.NAME = CSEARCH.NAME[i+k]
-                CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i+k]
-                CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
-                CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
-                CONFSPEC.CHARGE = MOLSPEC.CHARGE
-                CONFSPEC.MULT = MOLSPEC.MULT
-		CONFSPEC.MULT = MOLSPEC.MULT
-                CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
-                writeInput(JOB, CONFSPEC)
-                submitJob(JOB, CONFSPEC, log)
-        
-        for k in range(0,SEARCHPARAMS.POOL):
-            if (i+k) < len(CSEARCH.NAME):
-                CONFSPEC.NAME = CSEARCH.NAME[i+k]
+			if (i+k) < len(CSEARCH.NAME):
+				CONFSPEC.NAME = CSEARCH.NAME[i+k]
+				CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i+k]
+				CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
+				CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
+				CONFSPEC.CHARGE = MOLSPEC.CHARGE
+				CONFSPEC.MULT = MOLSPEC.MULT
+				CONFSPEC.MULT = MOLSPEC.MULT
+				CONFSPEC.MMTYPES = MOLSPEC.MMTYPES
+				writeInput(JOB, CONFSPEC)
+				submitJob(JOB, CONFSPEC, log)
+
+		for k in range(0,SEARCHPARAMS.POOL):
+			if (i+k) < len(CSEARCH.NAME):
+				CONFSPEC.NAME = CSEARCH.NAME[i+k]
 				
-                # Make sure optimization is complete
-                while(isJobFinished(JOB, CONFSPEC))==0: time.sleep(0.1)
+				# Make sure optimization is complete
+				while(isJobFinished(JOB, CONFSPEC))==0: time.sleep(0.1)
 				
-                # Successful termination - extract details
-                if isJobFinished(JOB, CONFSPEC) == 1:
-                    #log.Write("   Extracting optimized structure from "+CONFSPEC.NAME+".out ...")
-                    CONFSPEC =  getoutData(CONFSPEC)
-                    CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
-		    CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
-                    CSEARCH.ENERGY[i+k] = CONFSPEC.ENERGY
-                    CSEARCH.CARTESIANS[i+k] = CONFSPEC.CARTESIANS
-                    CSEARCH.CPU[i+k] = CONFSPEC.CPU
-                    CSEARCH.TORVAL[i+k] = getTorsion(CONFSPEC)
-                    CSEARCH.ALLCPU.append(CONFSPEC.CPU)
-                    if CONFSPEC.ENERGY < CSEARCH.GLOBMIN: CSEARCH.GLOBMIN = CONFSPEC.ENERGY
+				# Successful termination - extract details
+				if isJobFinished(JOB, CONFSPEC) == 1:
+					#log.Write("   Extracting optimized structure from "+CONFSPEC.NAME+".out ...")
+					CONFSPEC =  getoutData(CONFSPEC)
+					CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i+k]
+					CONFSPEC.ATOMTYPES = MOLSPEC.ATOMTYPES
+					CSEARCH.ENERGY[i+k] = CONFSPEC.ENERGY
+					CSEARCH.CARTESIANS[i+k] = CONFSPEC.CARTESIANS
+					CSEARCH.CPU[i+k] = CONFSPEC.CPU
+					CSEARCH.TORVAL[i+k] = getTorsion(CONFSPEC)
+					CSEARCH.ALLCPU.append(CONFSPEC.CPU)
+					if CONFSPEC.ENERGY < CSEARCH.GLOBMIN: CSEARCH.GLOBMIN = CONFSPEC.ENERGY
 				
-                samecheck = 0; toohigh = 0; isomerize = 0
-                # Remove all non-essential files associated with this conformer
-                CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
+				samecheck = 0; toohigh = 0; isomerize = 0
+				# Remove all non-essential files associated with this conformer
+				CleanAfterJob(JOB, CONFSPEC, samecheck, toohigh, isomerize)
 		
 		
-        i = i + SEARCHPARAMS.POOL
-        if round(i*100.0/len(CSEARCH.NAME)) < 100.0 and round(i*100.0/len(CSEARCH.NAME)) > round((i-SEARCHPARAMS.POOL)*100.0/len(CSEARCH.NAME)):
-            print "   "+str(round(i*100.0/len(CSEARCH.NAME)))+"% Complete ..."
+		i = i + SEARCHPARAMS.POOL
+		if round(i*100.0/len(CSEARCH.NAME)) < 100.0 and round(i*100.0/len(CSEARCH.NAME)) > round((i-SEARCHPARAMS.POOL)*100.0/len(CSEARCH.NAME)):
+			print "   "+str(round(i*100.0/len(CSEARCH.NAME)))+"% Complete ..."
 		
 	OrderConfs(CSEARCH, SEARCHPARAMS, start, log)
 	
-    print "\no  Checking for duplicate conformers ..."
-    todel=[]
-    for i in range((len(CSEARCH.NAME)-1),-1,-1):
-        CONFSPEC.ENERGY = CSEARCH.ENERGY[i]
-        CONFSPEC.NAME = CSEARCH.NAME[i]
-        CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i]
-        CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i]
-        CONFSPEC.TIMESFOUND = CSEARCH.TIMESFOUND[i]
+	print "\no  Checking for duplicate conformers ..."
+	todel=[]
+	for i in range((len(CSEARCH.NAME)-1),-1,-1):
+		CONFSPEC.ENERGY = CSEARCH.ENERGY[i]
+		CONFSPEC.NAME = CSEARCH.NAME[i]
+		CONFSPEC.CARTESIANS = CSEARCH.CARTESIANS[i]
+		CONFSPEC.CONNECTIVITY = CSEARCH.CONNECTIVITY[i]
+		CONFSPEC.TIMESFOUND = CSEARCH.TIMESFOUND[i]
 		
-        #print "checking",CONFSPEC.NAME
-        #Check whether the molecule has isomerized - usually this is undesirable so filter out structural isomers
-        concheck = checkconn(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
-        if concheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
-        else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: "+concheck[1]+concheck[2]+" has broken from "+concheck[3]+concheck[4]).ljust(50))
-        
-        if ((CONFSPEC.ENERGY - CSEARCH.GLOBMIN)*2625.5) < SEARCHPARAMS.DEMX: toohigh = 0
-        else: toohigh = 1; log.Write("\n   "+(CONFSPEC.NAME+" is rejected due to high energy ... ").ljust(50))
+		#print "checking",CONFSPEC.NAME
 		
-        samecheck=0
-        # Save or discard the optimized structure - reject if higher than global minimum by DEMX kJ/mol
-        if toohigh == 0 and isomerize == 0:
-            # Clustering - check if the energy and geometry match a previously saved structure
-            for j in range(0, i):
-                #print "checking ", CSEARCH.NAME[i], "against", CSEARCH.NAME[j]
-                if (CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5 < -0.1: break
-                if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < 0.1:
-                    #print "   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
-                    #what if they are suspiciously similar in energy?
-                    if checkSame(CONFSPEC, CSEARCH, SEARCHPARAMS, j) > 0 or checkSame(makemirror(CONFSPEC), CSEARCH, SEARCHPARAMS, j) > 0:
-                        log.Write("   "+(CONFSPEC.NAME+" is a duplicate of conformer "+CSEARCH.NAME[j]).ljust(50))
-                        CSEARCH.TIMESFOUND[j] = CSEARCH.TIMESFOUND[j] + CSEARCH.TIMESFOUND[i]
-                        CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
-                        todel.append(i)
-                        CSEARCH.ENERGY[i] = 999999.9
-                        break
+		#Check whether any stereogenic centres have been epimerized
+		chircheck = checkchir(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
+		if chircheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
+		else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: "+str(chircheck[1])+" has been epimerized").ljust(50))
+
+		#Check whether the molecule has isomerized - usually this is undesirable so filter out structural isomers
+		concheck = checkconn(CONFSPEC, MOLSPEC, CSEARCH, SEARCHPARAMS)
+		if concheck[0] == 0: CONFSPEC.CONNECTIVITY = MOLSPEC.CONNECTIVITY; isomerize = 0
+		else: isomerize = 1; log.Write("   "+(CONFSPEC.NAME+" is rejected: "+concheck[1]+concheck[2]+" has broken from "+concheck[3]+concheck[4]).ljust(50))
+			
+		if ((CONFSPEC.ENERGY - CSEARCH.GLOBMIN)*2625.5) < SEARCHPARAMS.DEMX: toohigh = 0
+		else: toohigh = 1; log.Write("\n   "+(CONFSPEC.NAME+" is rejected due to high energy ... ").ljust(50))
 		
-        # Rejection - discard
-        else:
-            CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
-            CSEARCH.ENERGY[i] = 999999.9
-            log.Write("\n   "+(CSEARCH.NAME[i]+" is now discarded ... ").ljust(50))
-            todel.append(i)
-    #print todel
-    if len(todel) !=0:
+		samecheck=0
+		# Save or discard the optimized structure - reject if higher than global minimum by DEMX kJ/mol
+		if toohigh == 0 and isomerize == 0:
+			# Clustering - check if the energy and geometry match a previously saved structure
+			for j in range(0, i):
+				#print "checking ", CSEARCH.NAME[i], "against", CSEARCH.NAME[j]
+				if (CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5 < -0.5: break
+				if abs((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5) < 0.5:
+					#print "   "+CONFSPEC.NAME+" cf "+CSEARCH.NAME[j]+" = "+str((CONFSPEC.ENERGY-CSEARCH.ENERGY[j])*2625.5)
+					#what if they are suspiciously similar in energy?
+					if checkSame(CONFSPEC, CSEARCH, SEARCHPARAMS, j) > 0 or checkSame(makemirror(CONFSPEC), CSEARCH, SEARCHPARAMS, j) > 0:
+						log.Write("   "+(CONFSPEC.NAME+" is a duplicate of conformer "+CSEARCH.NAME[j]).ljust(50))
+						CSEARCH.TIMESFOUND[j] = CSEARCH.TIMESFOUND[j] + CSEARCH.TIMESFOUND[i]
+						CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
+						todel.append(i)
+						CSEARCH.ENERGY[i] = 999999.9
+						break
+		
+		# Rejection - discard
+		else:
+			CSEARCH.NREJECT = CSEARCH.NREJECT + CSEARCH.TIMESFOUND[i]
+			CSEARCH.ENERGY[i] = 999999.9
+			log.Write("\n   "+(CSEARCH.NAME[i]+" is now discarded ... ").ljust(50))
+			todel.append(i)
+	#print todel
+	if len(todel) !=0:
 		OrderConfs(CSEARCH, SEARCHPARAMS, start, log)
 		RemoveConformer(CSEARCH, todel)
 
