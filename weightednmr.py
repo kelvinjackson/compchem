@@ -233,17 +233,17 @@ def find_coeffplane(ringatoms, fileData):
     print yvals
     print zvals
     xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum = get_squares_list(ringatoms, xvals, yvals, zvals)
-    if xsum == 0.0 and ysum == 0.0:
+    if x2sum == 0.0 and y2sum == 0.0: #changed from "xsum" and "ysum" as these can run to zero in symmetric systems in which coordinates have opposing signs equidistance from the x- or y-axis
         rotated = 3
         print "Can't define a ring by points in a line"
         print "This is going to go horribly wrong"
-    if xsum == 0.0:
+    if x2sum == 0.0:
         new_xvals = yvals
         new_yvals = zvals
         new_zvals = xvals
         xzsum, xysum, xsum, ysum, zsum, x2sum, y2sum, yzsum = get_squares_list(ringatoms, xvals, yvals, zvals)
         rotated = 1
-    if ysum == 0.0:
+    if y2sum == 0.0:
         new_xvals = zvals
         new_yvals = xvals
         new_zvals = yvals
