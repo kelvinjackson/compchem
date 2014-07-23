@@ -147,7 +147,8 @@ class getoutData:
 			for i in range(0,len(outlines)):
 				if outlines[i].find("ATOM") > -1:
 					self.ATOMTYPES.append(elementID(int(outlines[i].split()[1])))
-					self.CARTESIANS.append([float(outlines[i].split()[5]),float(outlines[i].split()[6]),float(outlines[i].split()[7])])
+					self.CARTESIANS.append([float(outlines[i][30:38]),float(outlines[i][38:46]),float(outlines[i][46:54])])
+					#self.CARTESIANS.append([float(outlines[i].split()[5]),float(outlines[i].split()[6]),float(outlines[i].split()[7])])
 					
 		if os.path.exists(file):
 			outfile = open(file,"r") 	

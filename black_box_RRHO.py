@@ -238,39 +238,40 @@ class calc_bbe:
 				
 		# Calculate Translational, Rotational and Vibrational contributions to the energy
 		Utrans = calc_translational_energy(temperature)
-		Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature)
-		Uvib = calc_vibrational_energy(frequency_wn, temperature,freq_scale_factor)
-		ZPE = calc_zeropoint_energy(frequency_wn, freq_scale_factor)
+		if hasattr(self, "zero_point_corr"):
+			Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature)
+			Uvib = calc_vibrational_energy(frequency_wn, temperature,freq_scale_factor)
+			ZPE = calc_zeropoint_energy(frequency_wn, freq_scale_factor)
 		
-		# Calculate Translational, Rotational and Vibrational contributions to the entropy
-		Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature)
-		Strans = calc_translational_entropy(molecular_mass, conc, temperature)
-		conc_correction = Strans - Strans1atm
+			# Calculate Translational, Rotational and Vibrational contributions to the entropy
+			Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature)
+			Strans = calc_translational_entropy(molecular_mass, conc, temperature)
+			print Strans
+			conc_correction = Strans - Strans1atm
 			
-		Srot = calc_rotational_entropy(self.zero_point_corr, symmno, rotemp, temperature)
+			Srot = calc_rotational_entropy(self.zero_point_corr, symmno, rotemp, temperature)
 				
-		# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
-		Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)
-		Svibrrho = calc_rrho_entropy(frequency_wn, temperature,freq_scale_factor)
-		damp = calc_damp(frequency_wn, FREQ_CUTOFF)
+			# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
+			Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)
+			Svibrrho = calc_rrho_entropy(frequency_wn, temperature,freq_scale_factor)
+			damp = calc_damp(frequency_wn, FREQ_CUTOFF)
 		
-		# Compute entropy (cal/mol/K) using the two values and damping function
-		vib_entropy = []
-		for j in range(0,len(frequency_wn)):
-			vib_entropy.append(Svibh[j] * damp[j] + (1-damp[j]) * Svibrrho[j])
+			# Compute entropy (cal/mol/K) using the two values and damping function
+			vib_entropy = []
+			for j in range(0,len(frequency_wn)): vib_entropy.append(Svibh[j] * damp[j] + (1-damp[j]) * Svibrrho[j])
 
-		Svib = sum(vib_entropy)
-		RRHO_correction = Svib - sum(Svibh)
+			Svib = sum(vib_entropy)
+			RRHO_correction = Svib - sum(Svibh)
 		
-		# Add all terms to get Free energy
+			# Add all terms to get Free energy
 
-		self.enthalpy = self.scf_energy + (Utrans + Urot + Uvib + GAS_CONSTANT*temperature/kjtokcal/1000.0)/autokcal
-		self.zpe = ZPE/autokcal
-		self.entropy = (Strans + Srot + Svib)/autokcal/1000.0
-		self.gibbs_free_energy = self.enthalpy - temperature * self.entropy
+			self.enthalpy = self.scf_energy + (Utrans + Urot + Uvib + GAS_CONSTANT*temperature/kjtokcal/1000.0)/autokcal
+			self.zpe = ZPE/autokcal
+			self.entropy = (Strans + Srot + Svib)/autokcal/1000.0
+			self.gibbs_free_energy = self.enthalpy - temperature * self.entropy
 
-		self.RRHO_correction = -RRHO_correction * temperature/1000.0
-		self.conc_correction = -conc_correction * temperature/1000.0
+			self.RRHO_correction = -RRHO_correction * temperature/1000.0
+			self.conc_correction = -conc_correction * temperature/1000.0
 
 if __name__ == "__main__":
 	
@@ -293,7 +294,7 @@ if __name__ == "__main__":
 	for file in files:
 		bbe = calc_bbe(file, FREQ_CUTOFF, temperature)
 		print "o ",file.split(".")[0],
-		if not hasattr(bbe,"gibbs_free_energy"): print "Warning! Job did not finish normally!"
+		if not hasattr(bbe,"gibbs_free_energy"): print "Warning! Job did not finish normally!", 
 		if hasattr(bbe, "scf_energy"): print bbe.scf_energy,
 		else: print "N/A",
 		if hasattr(bbe, "zero_point_corr"): print bbe.zpe,

@@ -45,13 +45,13 @@ class getinData:
 		def getCHARGE(self, inlines):
 			for i in range(0,len(inlines)):
 				if inlines[i].find("#") > -1:
-					#print inlines[i], inlines[i+1]
+					#print "here",inlines[i], inlines[i+1]
 					if len(inlines[i+1].split()) == 0:
 						self.CHARGE = inlines[i+4].split()[0]
 						self.MULT = inlines[i+4].split()[1]
-					#if len(inlines[i+2].split()) == 0:
-					#	self.CHARGE = inlines[i+5].split()[0]
-					#	self.MULT = inlines[i+5].split()[1]
+					if len(inlines[i+2].split()) == 0:
+						self.CHARGE = inlines[i+5].split()[0]
+						self.MULT = inlines[i+5].split()[1]
 			
 		def getMEMREQ(self, inlines):
 			for i in range(0,len(inlines)):
@@ -183,7 +183,7 @@ class getinData:
 
 		infile = open(file+".com","r") 
 		inlines = infile.readlines()
-		
+		#print "here"
 		getJOBTYPE(self, inlines)
 		getCHARGE(self, inlines)
 		getMEMREQ(self, inlines)
@@ -194,7 +194,7 @@ class getinData:
 		getBONDINDEX(self,inlines,self.NATOMS)
 		getCARTESIANS(self, inlines, self.NATOMS)
 		getCONSTRAINED(self, self.OPTIONAL)
-		
+
 		#print "\nSuccessfully read geometry input", file
 	
 
@@ -338,7 +338,9 @@ class getoutData:
 				else:
 					for i in range (standor+5,standor+5+self.NATOMS):
 						self.ATOMTYPES.append(elementID(int(outlines[i].split()[1])))
-						if anharmonic_geom==0:self.CARTESIANS.append([float(outlines[i].split()[3]),float(outlines[i].split()[4]),float(outlines[i].split()[5])])
+						if anharmonic_geom==0:
+							if len(outlines[i].split()) > 5: self.CARTESIANS.append([float(outlines[i].split()[3]),float(outlines[i].split()[4]),float(outlines[i].split()[5])])
+							else: self.CARTESIANS.append([float(outlines[i].split()[2]),float(outlines[i].split()[3]),float(outlines[i].split()[4])])
 						if anharmonic_geom==1:self.CARTESIANS.append([float(outlines[i].split()[2]),float(outlines[i].split()[3]),float(outlines[i].split()[4])])
 
 			if format == "Mopac":
