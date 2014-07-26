@@ -30,8 +30,64 @@ def is_number(s):
     except ValueError: return False
 
 
+
+#Read molecule data from a PDB file
+class getpdbData:
+	
+	def __init__(self, file):
+		if not os.path.exists(file+".pdb"):
+			print ("\nFATAL ERROR: Input file [ %s ] does not exist"%file)
+		
+		def getRESNAME(self, inlines):
+			self.ATOMID = []
+			self.RESNAME = []
+			self.RESID = []
+			self.RESNUM = 0
+			self.NMOL = 0
+			water = 0
+			for i in range(0,len(inlines)):
+				if inlines[i].find("ATOM") > -1:
+					self.ATOMID.append(int(inlines[i].split()[1]))
+					self.RESNAME.append(inlines[i].split()[3])
+					self.RESID.append(int(inlines[i].split()[4]))
+					if inlines[i].find("WAT") == -1:
+						if int(inlines[i].split()[4]) > self.RESNUM: self.RESNUM = self.RESNUM+1
+				if inlines[i].find("TER") > -1:
+						self.NMOL = self.NMOL + 1
+				if inlines[i].find("WAT") > -1: water = 1
+			if water == 1: self.NMOL = self.NMOL + 1; self.RESNUM = self.RESNUM + 1
+					
+			
+		def getMOLS(self, inlines):
+			self.MOLS = []
+			for i in range(0,(self.NMOL)): self.MOLS.append([])
+			j = 0
+			for i in range(0,len(inlines)):
+				if inlines[i].find("TER") > -1: j = j+1
+				if inlines[i].find("WAT") > -1: self.MOLS[self.NMOL-1].append(int(inlines[i].split()[1])-1)
+				if inlines[i].find("ATOM") > -1 and inlines[i].find("WAT") == -1:
+					self.MOLS[j].append(int(inlines[i].split()[1])-1)
+
+		def assignRES(self,inlines):
+			self.RES = []
+			for i in range(0,(self.RESNUM)): self.RES.append([])
+			
+			for j in range(0,len(inlines)):
+				if inlines[j].find("ATOM") > -1 and inlines[i].find("WAT") == -1:
+					for i in range(0,self.RESNUM):
+						if int(inlines[j].split()[4]) == (i+1):
+							self.RES[i].append(int(inlines[j].split()[1])-1)
+				if inlines[j].find("WAT") > -1:
+					self.RES[self.RESNUM-1].append(int(inlines[j].split()[1])-1)
+		
+		infile = open(file+".pdb","r")
+		inlines = infile.readlines()
+		getRESNAME(self, inlines)
+		if hasattr(self, "NMOL"): getMOLS(self, inlines)
+		if hasattr(self, "RESNUM"): assignRES(self, inlines)
+
 #Read molecule data from an input file
-class getinData: 
+class getinData:
 	
 	def __init__(self, file):
 		if not os.path.exists(file+".com"):
@@ -68,6 +124,7 @@ class getinData:
 		def getATOMTYPES(self, inlines):
 			self.ATOMTYPES = []
 			self.LEVELTYPES = []
+			self.NLEVELS = 1
 			for i in range(0,len(inlines)):
 				if inlines[i].find("#") > -1:
 					if len(inlines[i+1].split()) == 0: start = i+5
@@ -77,13 +134,15 @@ class getinData:
 				if len(inlines[i].split()) ==0:
 					break
 				else:
-					self.ATOMTYPES.append(inlines[i].split()[0].split("-")[0])
+					self.ATOMTYPES.append(inlines[i].split()[0])
 	
 					for oniomlevel in ["H", "M", "L"]:
-						if inlines[i].rfind(oniomlevel)>1:
-							self.LEVELTYPES.append(inlines[i][inlines[i].rfind("H"):])
-							break
-		
+						if inlines[i].split()[4] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
+						if inlines[i].split()[5] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
+
+			if len(self.LEVELTYPES) > 1: self.NLEVELS = 2
+			for level in self.LEVELTYPES:
+				if level == "M": self.NLEVELS = 3; break
 		
 		def getCONNECTIVITY(self, inlines, natoms):
 			self.CONNECTIVITY = []
@@ -150,7 +209,7 @@ class getinData:
 			connectivity = 0
 			
 			for j in range(0,len(inlines)):
-				if "1 2 " in inlines[j]:
+				if "1 " in inlines[j]:
 					startconn = j
 					connectivity  = 1
 					break
@@ -323,9 +382,12 @@ class getoutData:
 		def getATOMTYPES(self, outlines, format):
 			self.ATOMTYPES = []
 			self.CARTESIANS = []
+			self.ATOMICTYPES = []
 			if format == "Gaussian":
 				anharmonic_geom=0
 				for i in range(0,len(outlines)):
+					if outlines[i].find("Input orientation") > -1:
+						standor = i
 					if outlines[i].find("Standard orientation") > -1:
 						standor = i
 					if outlines[i].find("Vib.Av.Geom.") > -1:
@@ -338,6 +400,8 @@ class getoutData:
 				else:
 					for i in range (standor+5,standor+5+self.NATOMS):
 						self.ATOMTYPES.append(elementID(int(outlines[i].split()[1])))
+						self.ATOMICTYPES.append(int(outlines[i].split()[2]))
+						
 						if anharmonic_geom==0:
 							if len(outlines[i].split()) > 5: self.CARTESIANS.append([float(outlines[i].split()[3]),float(outlines[i].split()[4]),float(outlines[i].split()[5])])
 							else: self.CARTESIANS.append([float(outlines[i].split()[2]),float(outlines[i].split()[3]),float(outlines[i].split()[4])])
@@ -376,12 +440,21 @@ class getoutData:
 		def getMULLIKEN(self, outlines, natoms, format):
 			if format == "Gaussian":
 				for i in range(0,len(outlines)):
-					if outlines[i].find("Mulliken atomic charges:") > -1:
+					if outlines[i].find("Mulliken charges:") > -1 or outlines[i].find("Mulliken charges and spin densities:") > -1:
+						
 						self.MULLIKEN = []
 						for j in range(i+2,i+natoms+2):
 							self.MULLIKEN.append(float(outlines[j].split()[2]))
 		
-		
+		def getAPT(self, outlines, natoms, format):
+			if format == "Gaussian":
+				for i in range(0,len(outlines)):
+					if outlines[i].find("APT charges:") > -1:
+						self.APT = []
+						for j in range(i+2,i+natoms+2):
+							self.APT.append(float(outlines[j].split()[2]))
+
+
 		def getCPU(self, outlines, format):
 			days = 0
 			hours = 0
@@ -451,8 +524,8 @@ class getoutData:
 		getFREQS(self, outlines, self.FORMAT)
 		getCPU(self, outlines, self.FORMAT)
 		getATOMTYPES(self, outlines, self.FORMAT)
-		if hasattr(self, "NATOMS"):
-			getMULLIKEN(self, outlines, self.NATOMS, self.FORMAT)
+		getMULLIKEN(self, outlines, self.NATOMS, self.FORMAT)
+		getAPT(self, outlines, self.NATOMS, self.FORMAT)
 		#getCONSTRAINED(self, outlines, self.FORMAT)
 		
 		#print "\nSuccessfully read geometry output", file
