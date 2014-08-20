@@ -11,7 +11,7 @@
     ###
 
 ###############################################################
-#                       MopacPrep.py                          #
+#                       Gaussianprep.py                       #
 #                                                             #
 #                   To create new *com file                   #
 #                                                             #
@@ -148,32 +148,28 @@ if __name__ == "__main__":
 	# Takes arguments: (1) input file(s) (*out) (2) new job parameters
 	if len(sys.argv) > 1: 
 		for i in range(1,len(sys.argv)):
-			if sys.argv[i][0:1] == "-" and sys.argv[i][0:3] != "--L":
-				if any(sys.argv[i+1]):
-					job.append([sys.argv[i],sys.argv[i+1]])
-			else:
-				if any(sys.argv[i-1]):
-					if sys.argv[i-1][0:1] != "-":
 						if len(sys.argv[1].split("."))>1:
-							print sys.argv[1]
-							if sys.argv[i].split(".")[1]=="out":
-								outfiles.append(sys.argv[i].split(".")[0])
-							if sys.argv[i].split(".")[1]=="log":
-                                                                outfiles.append(sys.argv[i].split(".")[0])
-							if sys.argv[i].split(".")[1]=="com":
-								infiles.append(sys.argv[i].split(".")[0])	
+							#print sys.argv[i]
+							if len(sys.argv[i].split(".")) > 1:
+								if sys.argv[i].split(".")[1]=="out":
+									outfiles.append(sys.argv[i].split(".")[0])
+								if sys.argv[i].split(".")[1]=="log":
+                                                                	outfiles.append(sys.argv[i].split(".")[0])
+								if sys.argv[i].split(".")[1]=="com":
+									infiles.append(sys.argv[i].split(".")[0])	
 	else:
 		print "\nWrong number of arguments used. Correct format: GaussianPrep file [new job parameters]\n"
 		sys.exit()
 
 	for file in outfiles:
-		Ginput = getGinput(file, job)
+		#Ginput = getGinput(file, job)
 		MolSpec = getoutData(file)
-		Gwrite = writeMopacinput(file, Ginput, MolSpec)
+		#MolSpec.MULT=4
+		Gwrite = writeDFTPlusinput(file, MolSpec)
 	for file in infiles:
-		Ginput = getGinput(file, job)
+		#Ginput = getGinput(file, job)
 		MolSpec = getinData(file)
 		MolSpec.MULT=1
 		MolSpec.CHARGE=0
-		Gwrite = writeMopacinput(file, Ginput, MolSpec)
+		Gwrite = writeDFTPlusinput(file, MolSpec)
 	

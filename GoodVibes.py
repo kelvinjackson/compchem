@@ -213,6 +213,9 @@ class calc_bbe:
 					if x > 0.00: frequency_wn.append(x)
 			# look for SCF energies, last one will be correct
 			if line.strip().startswith('SCF Done:'): self.scf_energy = float(line.strip().split()[4])
+			if line.strip().find("ONIOM: extrapolated energy") > -1: # Get energy from ONIOM calculation
+                                                self.scf_energy = (float(line.strip().split()[4]))
+
 			# look for thermal corrections 
 			if line.strip().startswith('Zero-point correction='): self.zero_point_corr = float(line.strip().split()[2])
 			if line.strip().startswith('Thermal correction to Energy='): self.energy_corr = float(line.strip().split()[4])
@@ -301,5 +304,5 @@ if __name__ == "__main__":
 		if hasattr(bbe, "enthalpy"): print str(bbe.enthalpy).rjust(15),
 		else: print "N/A",
 		if hasattr(bbe, "gibbs_free_energy"): print str(bbe.gibbs_free_energy).rjust(15),
-	print ""
+		print ""
 		

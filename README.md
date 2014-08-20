@@ -2,7 +2,7 @@ http://paton.chem.ox.ac.uk
 compchem
 ========
 
-A collection of scripts useful for computational chemistry...
+scripts useful for computational chemistry...
 
 black_box_RRHO.py
 =======
