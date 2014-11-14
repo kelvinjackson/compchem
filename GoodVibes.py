@@ -214,7 +214,9 @@ class calc_bbe:
 			# look for SCF energies, last one will be correct
 			if line.strip().startswith('SCF Done:'): self.scf_energy = float(line.strip().split()[4])
 			if line.strip().find("ONIOM: extrapolated energy") > -1: # Get energy from ONIOM calculation
-                                                self.scf_energy = (float(line.strip().split()[4]))
+                        	self.scf_energy = (float(line.strip().split()[4]))
+			if line.strip().find("Energy= ") > -1 and line.strip().find("Predicted")==-1 and line.strip().find("Thermal")==-1: # Get energy from Semi-empirical or Molecular Mechanics calculation
+                        	self.scf_energy = (float(line.strip().split()[1]))
 
 			# look for thermal corrections 
 			if line.strip().startswith('Zero-point correction='): self.zero_point_corr = float(line.strip().split()[2])
