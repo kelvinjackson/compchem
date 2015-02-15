@@ -60,13 +60,15 @@ def calc_translational_energy(temperature):
 
 
 # rotational energy evaluation (depends on molecular shape and temp.)
-def calc_rotational_energy(zpe, symmno, temperature):
+def calc_rotational_energy(zpe, symmno, temperature, linear):
 	"""
-	Calculates the rotaional energy (kcal/mol)
-	Etrans = 0 (atomic) ; RT (linear); 3/2 RT (non-linear)
-	"""
+		Calculates the rotaional energy (kcal/mol)
+		Etrans = 0 (atomic) ; RT (linear); 3/2 RT (non-linear)
+		"""
 	if zpe == 0.0: energy = 0.0
-	if symmno == 2: energy = GAS_CONSTANT * temperature
+
+	if symmno == 0: energy = 0.0
+	elif linear == 1: energy = GAS_CONSTANT * temperature
 	else: energy = 1.5 * GAS_CONSTANT * temperature
 	energy = energy/kjtokcal/1000.0
 	return energy
@@ -106,25 +108,69 @@ def calc_zeropoint_energy(frequency_wn,freq_scale_factor):
 	energy = energy/kjtokcal/1000.0
 	return energy
 
-# translational entropy evaluation (depends on mass, concentration, temp)
-def calc_translational_entropy(molecular_mass, conc, temperature):
+
+def get_free_space(solv):
 	"""
-	Calculates the translational entropic contribution (cal/(mol*K)) of an ideal gas
-	needs the molecular mass
-	Convert mass in amu to kg; conc in mol/l to number per m^3
-	Strans = R(Ln(2pimkT/h^2)^3/2(1/C)) + 3/2)
+		Calculates the free space in a litre of bulk solvent,
+		based on Shakhnovich and Whitesides (J. Org. Chem. 1998, 63, 3821-3830)
+		"""
+
+	# solvent densities are taken from the literature
+	# solvent volumes are taken from a B3LYP/6-31G(d) calculation with g09
+	if solv == "H2O":
+		solv_molarity = 55.6 # mol/l
+		solv_volume = 27.944 # Ang^3
+		
+	elif solv == "Toluene":
+		solv_molarity = 9.4 # mol/l
+		solv_volume = 149.070 # Ang^3
+
+	elif solv == "DMF":
+		solv_molarity = 12.9 # mol/l
+		solv_volume = 77.442 # Ang^3
+		
+	elif solv == "AcOH":
+		solv_molarity = 17.4 # mol/l
+		solv_volume = 86.1 # Ang^3
+
+	elif solv == "CHCl3":
+		solv_molarity = 12.5 # mol/l
+		solv_volume = 97 # Ang^3
+	else: solv = "unk"
+
+	if solv != "unk":
+		V_free = 8 * ((1E27/(solv_molarity*AVOGADRO_CONSTANT)) ** 0.333333 - solv_volume ** 0.333333) ** 3
+		freespace = V_free * solv_molarity * AVOGADRO_CONSTANT * 1E-24
+	else: freespace = 1000.0
+
+	#e.g. chloroform Vol free is 7.5mL
+	#e.g. DMF molarity is 12.9 and 77.442 Ang^3 molecular volume, so Vfree = 8((10^27/12.9*Na)^1/3 -
+	#4.26)^3 = 3.94 Ang^3 per molecule = 30.6 mL per L
+	# M.H. Abraham, J. Liszi, J. Chem. Soc. Faraday Trans. 74 (1978) 1604.
+	# e.g. Acetic acid molarity is 17.4 and 86.1 Ang^3 molecuar volume, so Vfree = 8((10^27/17.4*Na)^1/3 - 4.42)^3 = 0.026 Ang^3 per molecule = 0.272 mL per L
+	#freespace = 0.272
+
+	return freespace
+
+# translational entropy evaluation (depends on mass, concentration, temp, solvent)
+def calc_translational_entropy(molecular_mass, conc, temperature, solv):
 	"""
+		Calculates the translational entropic contribution (cal/(mol*K)) of an ideal gas
+		needs the molecular mass
+		Convert mass in amu to kg; conc in mol/l to number per m^3
+		Strans = R(Ln(2pimkT/h^2)^3/2(1/C)) + 3/2)
+		"""
 	simass = molecular_mass*AMU_to_KG
 	lmda = ((2.0*math.pi*simass*BOLTZMANN_CONSTANT*temperature)**0.5)/PLANCK_CONSTANT
 	Ndens = conc*1000*AVOGADRO_CONSTANT
-	freespace = 1000.0
+	freespace = get_free_space(solv)
 	Ndens = Ndens / (freespace/1000.0)
 	entropy = GAS_CONSTANT*(2.5+math.log(lmda**3/Ndens))/4.184
 	return entropy
 
 
 # rotational entropy evaluation (depends on molecular shape and temp.)
-def calc_rotational_entropy(zpe, symmno, roconst, temperature):
+def calc_rotational_entropy(zpe, linear, symmno, roconst, temperature):
 	"""
 		Calculates the rotational entropy (cal/(mol*K))
 		Strans = 0 (atomic) ; R(Ln(q)+1) (linear); R(Ln(q)+3/2) (non-linear)
@@ -134,8 +180,8 @@ def calc_rotational_entropy(zpe, symmno, roconst, temperature):
 	qrot = qrot ** 0.5
 	qrot = qrot/symmno
 	if zpe == 0.0: entropy = 0.0
-	if symmno == 2: entropy = GAS_CONSTANT * (math.log(qrot/2.0) + 1)
-	else: energy = entropy = GAS_CONSTANT * (math.log(qrot) + 1.5)
+	if linear == 2: entropy = GAS_CONSTANT * (math.log(qrot/2.0) + 1)
+	else: entropy = GAS_CONSTANT * (math.log(qrot) + 1.5)
 	entropy = entropy/kjtokcal
 	return entropy
 
@@ -195,7 +241,7 @@ def calc_damp(frequency_wn, FREQ_CUTOFF):
 
 
 class calc_bbe:	
-	def __init__(self, file, FREQ_CUTOFF, temperature):
+	def __init__(self, file, FREQ_CUTOFF, temperature, conc, freq_scale_factor,solv):
 
 		# Frequencies in waveunmbers
 		frequency_wn = []
@@ -225,56 +271,66 @@ class calc_bbe:
 			if line.strip().startswith('Thermal correction to Gibbs Free Energy='): gibbs_corr = float(line.strip().split()[6])
 			if line.strip().startswith('Molecular mass:'): molecular_mass = float(line.strip().split()[2])
 			if line.strip().startswith('Rotational symmetry number'): symmno = int((line.strip().split()[3]).split(".")[0])
+			linear_mol = 0
+			if line.strip().startswith('This molecule is a prolate symmetric top'): linear_mol = 1
 			if line.strip().startswith('Rotational constants'): roconst = [float(line.strip().split()[3]), float(line.strip().split()[4]), float(line.strip().split()[5])]
 		 
 				
 		# Calculate Translational, Rotational and Vibrational contributions to the energy
 		Utrans = calc_translational_energy(temperature)
-		Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature)
+		Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature,linear_mol)
 		Uvib = calc_vibrational_energy(frequency_wn, temperature,freq_scale_factor)
 		ZPE = calc_zeropoint_energy(frequency_wn, freq_scale_factor)
 		
 		# Calculate Translational, Rotational and Vibrational contributions to the entropy
-		Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature)
-		Strans = calc_translational_entropy(molecular_mass, conc, temperature)
+		Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature, solv)
+		Strans = calc_translational_entropy(molecular_mass, conc, temperature, solv)
 		conc_correction = Strans - Strans1atm
 			
-		Srot = calc_rotational_entropy(self.zero_point_corr, symmno, roconst, temperature)
+		Srot = calc_rotational_entropy(self.zero_point_corr, linear_mol, symmno, roconst, temperature)
 				
 		# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
 		Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)
 		Svibrrho = calc_rrho_entropy(frequency_wn, temperature,freq_scale_factor)
 		damp = calc_damp(frequency_wn, FREQ_CUTOFF)
-		
+	
+		#print Svibh
+		#print Svibrrho
+	
 		# Compute entropy (cal/mol/K) using the two values and damping function
 		vib_entropy = []
 		for j in range(0,len(frequency_wn)):
 			vib_entropy.append(Svibh[j] * damp[j] + (1-damp[j]) * Svibrrho[j])
 
-		Svib = sum(vib_entropy)
-		RRHO_correction = Svib - sum(Svibh)
+		qh_Svib = sum(vib_entropy)
+		h_Svib = sum(Svibh)
+		RRHO_correction = h_Svib - qh_Svib
 		
 		# Add all terms to get Free energy
-
+		#print Utrans, Urot, Uvib
+		#print Strans, Srot, h_Svib
 		self.enthalpy = self.scf_energy + (Utrans + Urot + Uvib + GAS_CONSTANT*temperature/kjtokcal/1000.0)/autokcal
 		self.zpe = ZPE/autokcal
-		self.entropy = (Strans + Srot + Svib)/autokcal/1000.0
+		self.entropy = (Strans + Srot + h_Svib)/autokcal/1000.0
+		self.qh_entropy = (Strans + Srot + qh_Svib)/autokcal/1000.0
 		self.gibbs_free_energy = self.enthalpy - temperature * self.entropy
-
+		self.qh_gibbs_free_energy = self.enthalpy - temperature * self.qh_entropy
 		self.RRHO_correction = -RRHO_correction * temperature/1000.0
 		self.conc_correction = -conc_correction * temperature/1000.0
-
+		
 if __name__ == "__main__":
 	
 	# Takes arguments: cutoff_freq g09_output_files
 	files = []
-	FREQ_CUTOFF = "none"; temperature = "none"; conc = "none"; freq_scale_factor = "none"
+	FREQ_CUTOFF = "none"; temperature = "none"; conc = "none"; freq_scale_factor = "none"; solv = "none"
 	if len(sys.argv) > 1:
 		for i in range(1,len(sys.argv)):
 			if sys.argv[i] == "-f": FREQ_CUTOFF = float(sys.argv[i+1])
 			elif sys.argv[i] == "-t": temperature = float(sys.argv[i+1])
 			elif sys.argv[i] == "-c": conc = float(sys.argv[i+1])
-			elif sys.argv[i] == "-s": freq_scale_factor = float(sys.argv[i+1])
+			elif sys.argv[i] == "-v": freq_scale_factor = float(sys.argv[i+1])
+			elif sys.argv[i] == "-s": solv = (sys.argv[i+1])
+			
 			else:
 				if len(sys.argv[i].split(".")) > 1:
 					if sys.argv[i].split(".")[1] == "out" or sys.argv[i].split(".")[1] == "log": files.append(sys.argv[i])
@@ -282,29 +338,38 @@ if __name__ == "__main__":
 		if FREQ_CUTOFF != "none": print "   Frequency cut-off value =", FREQ_CUTOFF, "wavenumbers"
 		else: print "   Frequency cut-off value not defined!"; sys.exit()
 		if temperature != "none": print "   Temperature =", temperature, "Kelvin",
-		else: print "   Temperature (default) = 298K",; temperature = 298.0
+		else: print "   Temperature (default) = 298.15K",; temperature = 298.15
 		if conc != "none": print "   Concn =", conc, "mol/l",
 		else: print "   Concn (default) = 1 mol/l",; conc = 1.0
 		if freq_scale_factor != "none": print "   Frequency scal factor =", freq_scale_factor,
 		else: print "   Frequency scale factor (default) = 1.0"; freq_scale_factor = 1.0
+		
+		freespace = get_free_space(solv)
+		if freespace != 1000.0: print "   Solvent =", solv+": % free volume (Strans)","%.1f" % (freespace/10.0)
+		else: print "   Solvent (default) = undefined: % free volume (Strans) = 100.0"; solv = "unk"
 
 	else:
 		print "\nWrong number of arguments used. Correct format: GoodVibe.py -f cutoff_freq (-t temp) (-c concn) (-s scalefactor) g09_output_files\n"
 		sys.exit()
 	
 	print "\n  ",
-	print "Structure".ljust(30), "Energy".rjust(15), "ZPE".rjust(15), "Enthalpy".rjust(15), "Free energy".rjust(15)
+	print "Structure".ljust(30), "Energy".rjust(10), "ZPE".rjust(10), "Enthalpy".rjust(10), "T.S".rjust(10), "T.qh-S".rjust(10), "G(T)".rjust(10), "qh-G(T)".rjust(10)
 	for file in files:
-		bbe = calc_bbe(file, FREQ_CUTOFF, temperature)
+		bbe = calc_bbe(file, FREQ_CUTOFF, temperature, conc, freq_scale_factor, solv)
 		print "o ",
 		print (file.split(".")[0]).ljust(30),
 		if not hasattr(bbe,"gibbs_free_energy"): print "Warning! Job did not finish normally!"
-		if hasattr(bbe, "scf_energy"): print str(bbe.scf_energy).rjust(15),
+		if hasattr(bbe, "scf_energy"): print "%.6f" % bbe.scf_energy,
 		else: print "N/A",
-		if hasattr(bbe, "zero_point_corr"): print str(bbe.zpe).rjust(15),
+		if hasattr(bbe, "zero_point_corr"): print "   %.6f" % (bbe.zpe),
 		else: print "N/A",
-		if hasattr(bbe, "enthalpy"): print str(bbe.enthalpy).rjust(15),
+		if hasattr(bbe, "enthalpy"): print "   %.6f" % (bbe.enthalpy),
 		else: print "N/A",
-		if hasattr(bbe, "gibbs_free_energy"): print str(bbe.gibbs_free_energy).rjust(15),
-		print ""
-		
+		if hasattr(bbe, "entropy"): print "   %.6f" % (temperature * bbe.entropy),
+                else: print "N/A",
+		if hasattr(bbe, "qh_entropy"): print "   %.6f" % (temperature * bbe.qh_entropy),
+                else: print "N/A",
+		if hasattr(bbe, "gibbs_free_energy"): print "   %.6f" % (bbe.gibbs_free_energy),
+		else: print "N/A",
+		if hasattr(bbe, "qh_gibbs_free_energy"): print "   %.6f" % (bbe.qh_gibbs_free_energy)
+                else: print "N/A"

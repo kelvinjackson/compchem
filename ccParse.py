@@ -136,9 +136,9 @@ class getinData:
 				else:
 					self.ATOMTYPES.append(inlines[i].split()[0])
 	
-					for oniomlevel in ["H", "M", "L"]:
-						if inlines[i].split()[4] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
-						if inlines[i].split()[5] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
+					#for oniomlevel in ["H", "M", "L"]:
+					#	if inlines[i].split()[4] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
+					#	if inlines[i].split()[5] == oniomlevel: self.LEVELTYPES.append(oniomlevel)
 
 			if len(self.LEVELTYPES) > 1: self.NLEVELS = 2
 			for level in self.LEVELTYPES:

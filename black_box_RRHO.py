@@ -40,7 +40,7 @@ import math
 
 # CONSTANTS
 GAS_CONSTANT = 8.3144621
-PLANCK_CONSTANT = 6.62606957e-34 
+PLANCK_CONSTANT = 6.62606957e-34
 BOLTZMANN_CONSTANT = 1.3806488e-23 
 SPEED_OF_LIGHT = 2.99792458e10
 AVOGADRO_CONSTANT = 6.0221415e23
@@ -68,7 +68,8 @@ def calc_rotational_energy(zpe, symmno, temperature):
 	Etrans = 0 (atomic) ; RT (linear); 3/2 RT (non-linear)
 	"""
 	if zpe == 0.0: energy = 0.0
-	if symmno == 2: energy = GAS_CONSTANT * temperature
+	elif symmno == 0: energy = 0.0
+	elif symmno == 2: energy = GAS_CONSTANT * temperature
 	else: energy = 1.5 * GAS_CONSTANT * temperature
 	energy = energy/kjtokcal/1000.0
 	return energy
@@ -117,8 +118,24 @@ def calc_translational_entropy(molecular_mass, conc, temperature):
 	simass = molecular_mass*AMU_to_KG
 	lmda = ((2.0*math.pi*simass*BOLTZMANN_CONSTANT*temperature)**0.5)/PLANCK_CONSTANT
 	Ndens = conc*1000*AVOGADRO_CONSTANT
-	#print Ndens
-	#Convert molar volume to free volume due to solvent molecule size
+	
+	solv = "DMF"
+	
+	if solv == "DMF":
+		solv_molarity = 12.9 # mol/l
+		solv_volume = 77.442 # Ang^3
+
+	if solv == "AcOH":
+		solv_molarity = 17.4 # mol/l
+		solv_volume = 86.1 # Ang^3
+
+	if solv == "CHCl3":
+		solv_molarity = 12.9 # mol/l
+		solv_volume = 7.442 # Ang^3
+
+	V_free = 8 * (10E27/(solv_molarity*AVOGADRO_CONSTANT)) ** (1/3) - solv_volume
+	freespace = V_free * solv_molarity * AVOGADRO_CONSTANT * 1E-30
+
 	#e.g. chloroform Vol free is 7.5mL
 	#e.g. DMF molarity is 12.9 and 77.442 Ang^3 molecular volume, so Vfree = 8((10^27/12.9*Na)^1/3 - 
 	#4.26)^3 = 3.94 Ang^3 per molecule = 30.6 mL per L 
@@ -134,24 +151,31 @@ def calc_translational_entropy(molecular_mass, conc, temperature):
 
 
 # rotational entropy evaluation (depends on molecular shape and temp.)
-def calc_rotational_entropy(zpe, symmno, rotemp, temperature):
+def calc_rotational_entropy(zpe, symmno, roconst, temperature):
 	"""
 		Calculates the rotational entropy (cal/(mol*K))
 		Strans = 0 (atomic) ; R(Ln(q)+1) (linear); R(Ln(q)+3/2) (non-linear)
 		"""
 	#print moment_of_inertia
-
+	
 	#rotemp = [PLANCK_CONSTANT**2/(8*math.pi**2*BOLTZMANN_CONSTANT*entry*AMU_to_KG*1E-20) for entry in moment_of_inertia]
 	#print rotemp
-	qrot = math.pi*temperature**3/(rotemp[0]*rotemp[1]*rotemp[2])
-	qrot = qrot ** 0.5
+	if roconst == [0.0,0.0,0.0]:
+		return 0.0
+	rotemp = [roconst[0]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT,roconst[1]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT,roconst[2]*PLANCK_CONSTANT*1000000000/BOLTZMANN_CONSTANT]
+	# diatomic
+	if 0.0 in rotemp:
+		rotemp.remove(0.0)
+		qrot = temperature/rotemp[0]
+	else:
+		qrot = math.pi*temperature**3/(rotemp[0]*rotemp[1]*rotemp[2])
+		qrot = qrot ** 0.5
 	qrot = qrot/symmno
 	if zpe == 0.0: entropy = 0.0
 	if symmno == 2: entropy = GAS_CONSTANT * (math.log(qrot/2.0) + 1)
 	else: energy = entropy = GAS_CONSTANT * (math.log(qrot) + 1.5)
 	entropy = entropy/kjtokcal
 	return entropy
-
 
 # harmonic entropy evaluation
 def calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor):
@@ -209,7 +233,7 @@ def calc_damp(frequency_wn, FREQ_CUTOFF):
 
 class calc_bbe:	
 	def __init__(self, file, FREQ_CUTOFF, temperature):
-
+		
 		# Frequencies in waveunmbers
 		frequency_wn = []
 		
@@ -218,60 +242,65 @@ class calc_bbe:
 		
 		# Iterate over output
 		for line in g09_output:
-			# look for low frequencies  
+			# look for low frequencies
 			if line.strip().startswith('Frequencies --'):
 				for i in range(2,5):
-					x = float(line.strip().split()[i])
-					#  only deal with real frequencies
-					if x > 0.00: frequency_wn.append(x)
+					try:
+						x = float(line.strip().split()[i])
+						#  only deal with real frequencies
+						if x > 0.00: frequency_wn.append(x)
+					except IndexError:
+						pass
 			# look for SCF energies, last one will be correct
 			if line.strip().startswith('SCF Done:'): self.scf_energy = float(line.strip().split()[4])
-			# look for thermal corrections 
+			# look for thermal corrections
 			if line.strip().startswith('Zero-point correction='): self.zero_point_corr = float(line.strip().split()[2])
 			if line.strip().startswith('Thermal correction to Energy='): self.energy_corr = float(line.strip().split()[4])
 			if line.strip().startswith('Thermal correction to Enthalpy='): enthalpy_corr = float(line.strip().split()[4])
 			if line.strip().startswith('Thermal correction to Gibbs Free Energy='): gibbs_corr = float(line.strip().split()[6])
 			if line.strip().startswith('Molecular mass:'): molecular_mass = float(line.strip().split()[2])
 			if line.strip().startswith('Rotational symmetry number'): symmno = int((line.strip().split()[3]).split(".")[0])
-			if line.strip().startswith('Rotational temperatures'): rotemp = [float(line.strip().split()[3]), float(line.strip().split()[4]), float(line.strip().split()[5])]
-		 
-				
+			if line.strip().startswith('Rotational constants'): roconst = [float(line.strip().split()[3]), float(line.strip().split()[4]), float(line.strip().split()[5])]
+	
+		
+		try: symmno
+		except: symmno = 0
+		try: roconst
+		except: roconst = [0.0,0.0,0.0]
 		# Calculate Translational, Rotational and Vibrational contributions to the energy
 		Utrans = calc_translational_energy(temperature)
-		if hasattr(self, "zero_point_corr"):
-			Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature)
-			Uvib = calc_vibrational_energy(frequency_wn, temperature,freq_scale_factor)
-			ZPE = calc_zeropoint_energy(frequency_wn, freq_scale_factor)
+		Urot = calc_rotational_energy(self.zero_point_corr, symmno, temperature)
+		Uvib = calc_vibrational_energy(frequency_wn, temperature,freq_scale_factor)
+		ZPE = calc_zeropoint_energy(frequency_wn, freq_scale_factor)
+	
+		# Calculate Translational, Rotational and Vibrational contributions to the entropy
+		Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature)
+		Strans = calc_translational_entropy(molecular_mass, conc, temperature)
+		conc_correction = Strans - Strans1atm
 		
-			# Calculate Translational, Rotational and Vibrational contributions to the entropy
-			Strans1atm = calc_translational_entropy(molecular_mass, atmos/(GAS_CONSTANT*temperature), temperature)
-			Strans = calc_translational_entropy(molecular_mass, conc, temperature)
-			print Strans
-			conc_correction = Strans - Strans1atm
-			
-			Srot = calc_rotational_entropy(self.zero_point_corr, symmno, rotemp, temperature)
-				
-			# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
-			Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)
-			Svibrrho = calc_rrho_entropy(frequency_wn, temperature,freq_scale_factor)
-			damp = calc_damp(frequency_wn, FREQ_CUTOFF)
+		Srot = calc_rotational_entropy(self.zero_point_corr, symmno, roconst, temperature)
 		
-			# Compute entropy (cal/mol/K) using the two values and damping function
-			vib_entropy = []
-			for j in range(0,len(frequency_wn)): vib_entropy.append(Svibh[j] * damp[j] + (1-damp[j]) * Svibrrho[j])
+		# Calculate harmonic entropy, free-rotor entropy and damping function for each frequency - functions defined above
+		Svibh = calc_harmonic_entropy(frequency_wn, temperature,freq_scale_factor)
+		Svibrrho = calc_rrho_entropy(frequency_wn, temperature,freq_scale_factor)
+		damp = calc_damp(frequency_wn, FREQ_CUTOFF)
+	
+		# Compute entropy (cal/mol/K) using the two values and damping function
+		vib_entropy = []
+		for j in range(0,len(frequency_wn)): vib_entropy.append(Svibh[j] * damp[j] + (1-damp[j]) * Svibrrho[j])
 
-			Svib = sum(vib_entropy)
-			RRHO_correction = Svib - sum(Svibh)
-		
-			# Add all terms to get Free energy
+		Svib = sum(vib_entropy)
+		RRHO_correction = Svib - sum(Svibh)
+	
+		# Add all terms to get Free energy
 
-			self.enthalpy = self.scf_energy + (Utrans + Urot + Uvib + GAS_CONSTANT*temperature/kjtokcal/1000.0)/autokcal
-			self.zpe = ZPE/autokcal
-			self.entropy = (Strans + Srot + Svib)/autokcal/1000.0
-			self.gibbs_free_energy = self.enthalpy - temperature * self.entropy
+		self.enthalpy = self.scf_energy + (Utrans + Urot + Uvib + GAS_CONSTANT*temperature/kjtokcal/1000.0)/autokcal
+		self.zpe = ZPE/autokcal
+		self.entropy = (Strans + Srot + Svib)/autokcal/1000.0
+		self.gibbs_free_energy = self.enthalpy - temperature * self.entropy
 
-			self.RRHO_correction = -RRHO_correction * temperature/1000.0
-			self.conc_correction = -conc_correction * temperature/1000.0
+		self.RRHO_correction = -RRHO_correction * temperature/1000.0
+		self.conc_correction = -conc_correction * temperature/1000.0
 
 if __name__ == "__main__":
 	
