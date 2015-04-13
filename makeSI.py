@@ -282,12 +282,18 @@ if __name__ == "__main__":
 		else: Hstring = ""
 		if hasattr(fileData, "GIBBS"): Gstring = "G("+functional+"/"+basis+") = "+str(fileData.GIBBS)
 		else: Gstring = ""
-
+		IMF=[]
+		if hasattr(fileData, "FREQS"): 
+			for i in fileData.FREQS:
+				if i <=-40: Fstring = "Imaginary frequency = "+str(i);IMF.append(i)#Set imaginary frequency cutoff
+			
+		if len(IMF)==0: Fstring =""
 		print file+":"
 		print Estring
 		print ZPEstring
 		print Hstring
 		print Gstring
+		print Fstring
 		print ""
 		for i in range(0,fileData.NATOMS):
 			print fileData.ATOMTYPES[i],
